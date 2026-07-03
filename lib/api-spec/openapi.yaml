@@ -1,0 +1,382 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API specification for Programação de Entrega
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: entregas
+    description: Delivery schedule operations
+  - name: motoristas
+    description: Driver registry operations
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /entregas:
+    get:
+      operationId: listEntregas
+      tags: [entregas]
+      summary: List all entregas for a given date
+      parameters:
+        - in: query
+          name: date
+          schema:
+            type: string
+          description: Date in YYYY-MM-DD format (defaults to today)
+      responses:
+        "200":
+          description: List of entregas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Entrega"
+    post:
+      operationId: createEntrega
+      tags: [entregas]
+      summary: Create a new entrega
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EntregaInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Entrega"
+
+  /entregas/{id}:
+    get:
+      operationId: getEntrega
+      tags: [entregas]
+      summary: Get a single entrega
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Entrega found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Entrega"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateEntrega
+      tags: [entregas]
+      summary: Update an entrega
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EntregaUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Entrega"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteEntrega
+      tags: [entregas]
+      summary: Delete an entrega
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+
+  /motoristas:
+    get:
+      operationId: listMotoristas
+      tags: [motoristas]
+      summary: List all registered drivers
+      responses:
+        "200":
+          description: List of drivers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Motorista"
+    post:
+      operationId: createMotorista
+      tags: [motoristas]
+      summary: Create a new driver
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MotoristasInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Motorista"
+
+  /motoristas/{id}:
+    patch:
+      operationId: updateMotorista
+      tags: [motoristas]
+      summary: Update a driver
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MotoristasInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Motorista"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteMotorista
+      tags: [motoristas]
+      summary: Delete a driver
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+
+  /entregas/reorder:
+    post:
+      operationId: reorderEntregas
+      tags: [entregas]
+      summary: Reorder entregas for a date
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReorderInput"
+      responses:
+        "200":
+          description: Reordered successfully
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    Entrega:
+      type: object
+      required:
+        - id
+        - date
+        - sortOrder
+        - checked
+        - cliente
+        - hrs
+        - obs
+        - motorista
+        - placa
+        - unidade
+        - nf
+        - cg
+        - v
+      properties:
+        id:
+          type: integer
+        date:
+          type: string
+          description: Date in YYYY-MM-DD format
+        sortOrder:
+          type: integer
+        checked:
+          type: boolean
+          description: "S column: row is checked/confirmed"
+        cliente:
+          type: string
+        hrs:
+          type: ["string", "null"]
+          description: Hour annotation (e.g. 7H, 11MT) — highlighted yellow when filled
+        obs:
+          type: ["string", "null"]
+          description: Observations (e.g. 001 + 002, 087)
+        motorista:
+          type: ["string", "null"]
+          description: Driver name
+        placa:
+          type: ["string", "null"]
+          description: Vehicle license plate
+        unidade:
+          type: string
+          enum: [MATRIZ, FILIAL, "MATRIZ + FILIAL"]
+          description: Delivery unit
+        nf:
+          type: boolean
+          description: NF column flag — highlighted green when true
+        cg:
+          type: boolean
+          description: CG column flag — highlighted green when true
+        v:
+          type: ["string", "null"]
+          enum: ["V", "2A", null]
+          description: V column flag — null=empty, V=concluido, 2A=segunda entrega
+
+    EntregaInput:
+      type: object
+      required:
+        - date
+        - cliente
+        - unidade
+      properties:
+        date:
+          type: string
+        sortOrder:
+          type: ["integer", "null"]
+        checked:
+          type: boolean
+        cliente:
+          type: string
+        hrs:
+          type: ["string", "null"]
+        obs:
+          type: ["string", "null"]
+        motorista:
+          type: ["string", "null"]
+        placa:
+          type: ["string", "null"]
+        unidade:
+          type: string
+          enum: [MATRIZ, FILIAL, "MATRIZ + FILIAL"]
+        nf:
+          type: boolean
+        cg:
+          type: boolean
+        v:
+          type: ["string", "null"]
+          enum: ["V", "2A", null]
+
+    EntregaUpdate:
+      type: object
+      properties:
+        checked:
+          type: boolean
+        cliente:
+          type: ["string", "null"]
+        hrs:
+          type: ["string", "null"]
+        obs:
+          type: ["string", "null"]
+        motorista:
+          type: ["string", "null"]
+        placa:
+          type: ["string", "null"]
+        unidade:
+          type: ["string", "null"]
+          enum: [MATRIZ, FILIAL, "MATRIZ + FILIAL", null]
+        nf:
+          type: boolean
+        cg:
+          type: boolean
+        v:
+          type: ["string", "null"]
+          enum: ["V", "2A", null]
+        sortOrder:
+          type: ["integer", "null"]
+
+    Motorista:
+      type: object
+      required:
+        - id
+        - nome
+        - placa
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+        placa:
+          type: string
+
+    MotoristasInput:
+      type: object
+      required:
+        - nome
+        - placa
+      properties:
+        nome:
+          type: string
+        placa:
+          type: string
+
+    ReorderInput:
+      type: object
+      required:
+        - ids
+      properties:
+        ids:
+          type: array
+          items:
+            type: integer
+          description: Ordered list of entrega IDs representing the new sort order

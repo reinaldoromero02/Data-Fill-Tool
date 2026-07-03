@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Programação de Entrega"
+version = "1.0.0"
+id = "artifacts/programacao-entrega"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 25718
+
+[services.development]
+run = "pnpm --filter @workspace/programacao-entrega run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/programacao-entrega", "run", "build" ]
+publicDir = "artifacts/programacao-entrega/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25718"
+BASE_PATH = "/"
