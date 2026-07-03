@@ -7,12 +7,20 @@
  */
 
 export * from './entrega';
+export * from './entregaCg';
 export * from './entregaChecked';
 export * from './entregaInput';
+export * from './entregaInputCg';
+export * from './entregaInputChecked';
+export * from './entregaInputNf';
 export * from './entregaInputUnidade';
 export * from './entregaInputV';
+export * from './entregaNf';
 export * from './entregaUnidade';
 export * from './entregaUpdate';
+export * from './entregaUpdateCg';
+export * from './entregaUpdateChecked';
+export * from './entregaUpdateNf';
 export * from './entregaUpdateUnidade';
 export * from './entregaUpdateV';
 export * from './entregaV';

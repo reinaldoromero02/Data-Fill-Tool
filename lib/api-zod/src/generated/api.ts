@@ -24,21 +24,24 @@ export const ListEntregasQueryParams = zod.object({
   "date": zod.coerce.string().optional().describe('Date in YYYY-MM-DD format (defaults to today)')
 })
 
+export const listEntregasResponseRipackDefault = false;
+
 export const ListEntregasResponseItem = zod.object({
   "id": zod.number(),
   "date": zod.string().describe('Date in YYYY-MM-DD format'),
   "sortOrder": zod.number(),
-  "checked": zod.enum(['none','filled','confirmed']).describe('S column: none, filled (black), confirmed (tick)'),
+  "checked": zod.enum(['none', 'filled', 'confirmed']).describe('S column state: none=unchecked, filled=checked, confirmed=verified'),
   "cliente": zod.string(),
   "hrs": zod.string().nullable().describe('Hour annotation (e.g. 7H, 11MT) — highlighted yellow when filled'),
   "obs": zod.string().nullable().describe('Observations (e.g. 001 + 002, 087)'),
   "motorista": zod.string().nullable().describe('Driver name'),
   "placa": zod.string().nullable().describe('Vehicle license plate'),
   "unidade": zod.enum(['MATRIZ', 'FILIAL', 'MATRIZ + FILIAL']).describe('Delivery unit'),
-  "nf": zod.enum(['none','x','check']).describe('NF column: none, x (red), check (green)'),
-  "cg": zod.enum(['none','x','check']).describe('CG column: none, x (red), check (green)'),
+  "nf": zod.enum(['none', 'x', 'check']).describe('NF column state: none=empty, x=missing, check=confirmed'),
+  "cg": zod.enum(['none', 'x', 'check']).describe('CG column state: none=empty, x=missing, check=confirmed'),
   "v": zod.union([zod.literal('V'),zod.literal('2A'),zod.literal(null)]).nullable().describe('V column flag — null=empty, V=concluido, 2A=segunda entrega'),
-  "divergencias": zod.string().nullable().describe('Divergencias notes')
+  "divergencias": zod.string().nullish().describe('Divergências \/ observations column'),
+  "ripack": zod.boolean().default(listEntregasResponseRipackDefault).describe('RIPACK flag — row turns green when true')
 })
 export const ListEntregasResponse = zod.array(ListEntregasResponseItem)
 
@@ -49,93 +52,116 @@ export const ListEntregasResponse = zod.array(ListEntregasResponseItem)
 export const CreateEntregaBody = zod.object({
   "date": zod.string(),
   "sortOrder": zod.number().nullish(),
-  "checked": zod.enum(['none','filled','confirmed']).optional(),
+  "checked": zod.enum(['none', 'filled', 'confirmed']).optional(),
   "cliente": zod.string(),
   "hrs": zod.string().nullish(),
   "obs": zod.string().nullish(),
   "motorista": zod.string().nullish(),
   "placa": zod.string().nullish(),
   "unidade": zod.enum(['MATRIZ', 'FILIAL', 'MATRIZ + FILIAL']),
-  "nf": zod.enum(['none','x','check']).optional(),
-  "cg": zod.enum(['none','x','check']).optional(),
+  "nf": zod.enum(['none', 'x', 'check']).optional(),
+  "cg": zod.enum(['none', 'x', 'check']).optional(),
   "v": zod.union([zod.literal('V'),zod.literal('2A'),zod.literal(null)]).nullish(),
-  "divergencias": zod.string().nullish()
+  "divergencias": zod.string().nullish(),
+  "ripack": zod.boolean().optional()
 })
+
+export const createEntregaResponseRipackDefault = false;
 
 export const CreateEntregaResponse = zod.object({
   "id": zod.number(),
   "date": zod.string().describe('Date in YYYY-MM-DD format'),
   "sortOrder": zod.number(),
-  "checked": zod.enum(['none','filled','confirmed']).describe('S column: none, filled (black), confirmed (tick)'),
+  "checked": zod.enum(['none', 'filled', 'confirmed']).describe('S column state: none=unchecked, filled=checked, confirmed=verified'),
   "cliente": zod.string(),
   "hrs": zod.string().nullable().describe('Hour annotation (e.g. 7H, 11MT) — highlighted yellow when filled'),
   "obs": zod.string().nullable().describe('Observations (e.g. 001 + 002, 087)'),
   "motorista": zod.string().nullable().describe('Driver name'),
   "placa": zod.string().nullable().describe('Vehicle license plate'),
   "unidade": zod.enum(['MATRIZ', 'FILIAL', 'MATRIZ + FILIAL']).describe('Delivery unit'),
-  "nf": zod.enum(['none','x','check']).describe('NF column: none, x (red), check (green)'),
-  "cg": zod.enum(['none','x','check']).describe('CG column: none, x (red), check (green)'),
+  "nf": zod.enum(['none', 'x', 'check']).describe('NF column state: none=empty, x=missing, check=confirmed'),
+  "cg": zod.enum(['none', 'x', 'check']).describe('CG column state: none=empty, x=missing, check=confirmed'),
   "v": zod.union([zod.literal('V'),zod.literal('2A'),zod.literal(null)]).nullable().describe('V column flag — null=empty, V=concluido, 2A=segunda entrega'),
-  "divergencias": zod.string().nullable().describe('Divergencias notes')
+  "divergencias": zod.string().nullish().describe('Divergências \/ observations column'),
+  "ripack": zod.boolean().default(createEntregaResponseRipackDefault).describe('RIPACK flag — row turns green when true')
 })
 
+
+/**
+ * @summary Get a single entrega
+ */
 export const GetEntregaParams = zod.object({
   "id": zod.coerce.number()
 })
+
+export const getEntregaResponseRipackDefault = false;
 
 export const GetEntregaResponse = zod.object({
   "id": zod.number(),
   "date": zod.string().describe('Date in YYYY-MM-DD format'),
   "sortOrder": zod.number(),
-  "checked": zod.enum(['none','filled','confirmed']).describe('S column: none, filled (black), confirmed (tick)'),
+  "checked": zod.enum(['none', 'filled', 'confirmed']).describe('S column state: none=unchecked, filled=checked, confirmed=verified'),
   "cliente": zod.string(),
   "hrs": zod.string().nullable().describe('Hour annotation (e.g. 7H, 11MT) — highlighted yellow when filled'),
   "obs": zod.string().nullable().describe('Observations (e.g. 001 + 002, 087)'),
   "motorista": zod.string().nullable().describe('Driver name'),
   "placa": zod.string().nullable().describe('Vehicle license plate'),
   "unidade": zod.enum(['MATRIZ', 'FILIAL', 'MATRIZ + FILIAL']).describe('Delivery unit'),
-  "nf": zod.enum(['none','x','check']).describe('NF column: none, x (red), check (green)'),
-  "cg": zod.enum(['none','x','check']).describe('CG column: none, x (red), check (green)'),
+  "nf": zod.enum(['none', 'x', 'check']).describe('NF column state: none=empty, x=missing, check=confirmed'),
+  "cg": zod.enum(['none', 'x', 'check']).describe('CG column state: none=empty, x=missing, check=confirmed'),
   "v": zod.union([zod.literal('V'),zod.literal('2A'),zod.literal(null)]).nullable().describe('V column flag — null=empty, V=concluido, 2A=segunda entrega'),
-  "divergencias": zod.string().nullable().describe('Divergencias notes')
+  "divergencias": zod.string().nullish().describe('Divergências \/ observations column'),
+  "ripack": zod.boolean().default(getEntregaResponseRipackDefault).describe('RIPACK flag — row turns green when true')
 })
 
+
+/**
+ * @summary Update an entrega
+ */
 export const UpdateEntregaParams = zod.object({
   "id": zod.coerce.number()
 })
 
 export const UpdateEntregaBody = zod.object({
-  "checked": zod.enum(['none','filled','confirmed']).optional(),
+  "checked": zod.enum(['none', 'filled', 'confirmed']).optional(),
   "cliente": zod.string().nullish(),
   "hrs": zod.string().nullish(),
   "obs": zod.string().nullish(),
   "motorista": zod.string().nullish(),
   "placa": zod.string().nullish(),
   "unidade": zod.union([zod.literal('MATRIZ'),zod.literal('FILIAL'),zod.literal('MATRIZ + FILIAL'),zod.literal(null)]).nullish(),
-  "nf": zod.enum(['none','x','check']).optional(),
-  "cg": zod.enum(['none','x','check']).optional(),
+  "nf": zod.enum(['none', 'x', 'check']).optional(),
+  "cg": zod.enum(['none', 'x', 'check']).optional(),
   "v": zod.union([zod.literal('V'),zod.literal('2A'),zod.literal(null)]).nullish(),
   "divergencias": zod.string().nullish(),
+  "ripack": zod.boolean().optional(),
   "sortOrder": zod.number().nullish()
 })
+
+export const updateEntregaResponseRipackDefault = false;
 
 export const UpdateEntregaResponse = zod.object({
   "id": zod.number(),
   "date": zod.string().describe('Date in YYYY-MM-DD format'),
   "sortOrder": zod.number(),
-  "checked": zod.enum(['none','filled','confirmed']).describe('S column: none, filled (black), confirmed (tick)'),
+  "checked": zod.enum(['none', 'filled', 'confirmed']).describe('S column state: none=unchecked, filled=checked, confirmed=verified'),
   "cliente": zod.string(),
   "hrs": zod.string().nullable().describe('Hour annotation (e.g. 7H, 11MT) — highlighted yellow when filled'),
   "obs": zod.string().nullable().describe('Observations (e.g. 001 + 002, 087)'),
   "motorista": zod.string().nullable().describe('Driver name'),
   "placa": zod.string().nullable().describe('Vehicle license plate'),
   "unidade": zod.enum(['MATRIZ', 'FILIAL', 'MATRIZ + FILIAL']).describe('Delivery unit'),
-  "nf": zod.enum(['none','x','check']).describe('NF column: none, x (red), check (green)'),
-  "cg": zod.enum(['none','x','check']).describe('CG column: none, x (red), check (green)'),
+  "nf": zod.enum(['none', 'x', 'check']).describe('NF column state: none=empty, x=missing, check=confirmed'),
+  "cg": zod.enum(['none', 'x', 'check']).describe('CG column state: none=empty, x=missing, check=confirmed'),
   "v": zod.union([zod.literal('V'),zod.literal('2A'),zod.literal(null)]).nullable().describe('V column flag — null=empty, V=concluido, 2A=segunda entrega'),
-  "divergencias": zod.string().nullable().describe('Divergencias notes')
+  "divergencias": zod.string().nullish().describe('Divergências \/ observations column'),
+  "ripack": zod.boolean().default(updateEntregaResponseRipackDefault).describe('RIPACK flag — row turns green when true')
 })
 
+
+/**
+ * @summary Delete an entrega
+ */
 export const DeleteEntregaParams = zod.object({
   "id": zod.coerce.number()
 })

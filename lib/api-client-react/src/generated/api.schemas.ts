@@ -10,6 +10,18 @@ export interface HealthStatus {
 }
 
 /**
+ * S column state: none=unchecked, filled=checked, confirmed=verified
+ */
+export type EntregaChecked = typeof EntregaChecked[keyof typeof EntregaChecked];
+
+
+export const EntregaChecked = {
+  none: 'none',
+  filled: 'filled',
+  confirmed: 'confirmed',
+} as const;
+
+/**
  * Delivery unit
  */
 export type EntregaUnidade = typeof EntregaUnidade[keyof typeof EntregaUnidade];
@@ -19,6 +31,30 @@ export const EntregaUnidade = {
   MATRIZ: 'MATRIZ',
   FILIAL: 'FILIAL',
   'MATRIZ_+_FILIAL': 'MATRIZ + FILIAL',
+} as const;
+
+/**
+ * NF column state: none=empty, x=missing, check=confirmed
+ */
+export type EntregaNf = typeof EntregaNf[keyof typeof EntregaNf];
+
+
+export const EntregaNf = {
+  none: 'none',
+  x: 'x',
+  check: 'check',
+} as const;
+
+/**
+ * CG column state: none=empty, x=missing, check=confirmed
+ */
+export type EntregaCg = typeof EntregaCg[keyof typeof EntregaCg];
+
+
+export const EntregaCg = {
+  none: 'none',
+  x: 'x',
+  check: 'check',
 } as const;
 
 /**
@@ -33,24 +69,12 @@ export const EntregaV = {
   '2A': '2A',
 } as const;
 
-/**
- * S column: none=filled (black), confirmed (tick)
- */
-export type EntregaChecked = typeof EntregaChecked[keyof typeof EntregaChecked];
-
-
-export const EntregaChecked = {
-  NONE: 'none',
-  FILLED: 'filled',
-  CONFIRMED: 'confirmed',
-} as const;
-
 export interface Entrega {
   id: number;
   /** Date in YYYY-MM-DD format */
   date: string;
   sortOrder: number;
-  /** S column: none, filled (black), confirmed (tick) */
+  /** S column state: none=unchecked, filled=checked, confirmed=verified */
   checked: EntregaChecked;
   cliente: string;
   /**
@@ -75,21 +99,32 @@ export interface Entrega {
   placa: string | null;
   /** Delivery unit */
   unidade: EntregaUnidade;
-  /** NF column: none, x (red), check (green) */
-  nf: "none" | "x" | "check";
-  /** CG column: none, x (red), check (green) */
-  cg: "none" | "x" | "check";
+  /** NF column state: none=empty, x=missing, check=confirmed */
+  nf: EntregaNf;
+  /** CG column state: none=empty, x=missing, check=confirmed */
+  cg: EntregaCg;
   /**
      * V column flag — null=empty, V=concluido, 2A=segunda entrega
      * @nullable
      */
   v: EntregaV;
   /**
-     * Divergencias notes
+     * Divergências / observations column
      * @nullable
      */
-  divergencias: string | null;
+  divergencias?: string | null;
+  /** RIPACK flag — row turns green when true */
+  ripack?: boolean;
 }
+
+export type EntregaInputChecked = typeof EntregaInputChecked[keyof typeof EntregaInputChecked];
+
+
+export const EntregaInputChecked = {
+  none: 'none',
+  filled: 'filled',
+  confirmed: 'confirmed',
+} as const;
 
 export type EntregaInputUnidade = typeof EntregaInputUnidade[keyof typeof EntregaInputUnidade];
 
@@ -98,6 +133,24 @@ export const EntregaInputUnidade = {
   MATRIZ: 'MATRIZ',
   FILIAL: 'FILIAL',
   'MATRIZ_+_FILIAL': 'MATRIZ + FILIAL',
+} as const;
+
+export type EntregaInputNf = typeof EntregaInputNf[keyof typeof EntregaInputNf];
+
+
+export const EntregaInputNf = {
+  none: 'none',
+  x: 'x',
+  check: 'check',
+} as const;
+
+export type EntregaInputCg = typeof EntregaInputCg[keyof typeof EntregaInputCg];
+
+
+export const EntregaInputCg = {
+  none: 'none',
+  x: 'x',
+  check: 'check',
 } as const;
 
 /**
@@ -115,7 +168,7 @@ export interface EntregaInput {
   date: string;
   /** @nullable */
   sortOrder?: number | null;
-  checked?: EntregaChecked;
+  checked?: EntregaInputChecked;
   cliente: string;
   /** @nullable */
   hrs?: string | null;
@@ -126,13 +179,23 @@ export interface EntregaInput {
   /** @nullable */
   placa?: string | null;
   unidade: EntregaInputUnidade;
-  nf?: "none" | "x" | "check";
-  cg?: "none" | "x" | "check";
+  nf?: EntregaInputNf;
+  cg?: EntregaInputCg;
   /** @nullable */
   v?: EntregaInputV;
   /** @nullable */
   divergencias?: string | null;
+  ripack?: boolean;
 }
+
+export type EntregaUpdateChecked = typeof EntregaUpdateChecked[keyof typeof EntregaUpdateChecked];
+
+
+export const EntregaUpdateChecked = {
+  none: 'none',
+  filled: 'filled',
+  confirmed: 'confirmed',
+} as const;
 
 /**
  * @nullable
@@ -144,6 +207,24 @@ export const EntregaUpdateUnidade = {
   MATRIZ: 'MATRIZ',
   FILIAL: 'FILIAL',
   'MATRIZ_+_FILIAL': 'MATRIZ + FILIAL',
+} as const;
+
+export type EntregaUpdateNf = typeof EntregaUpdateNf[keyof typeof EntregaUpdateNf];
+
+
+export const EntregaUpdateNf = {
+  none: 'none',
+  x: 'x',
+  check: 'check',
+} as const;
+
+export type EntregaUpdateCg = typeof EntregaUpdateCg[keyof typeof EntregaUpdateCg];
+
+
+export const EntregaUpdateCg = {
+  none: 'none',
+  x: 'x',
+  check: 'check',
 } as const;
 
 /**
@@ -158,7 +239,7 @@ export const EntregaUpdateV = {
 } as const;
 
 export interface EntregaUpdate {
-  checked?: EntregaChecked;
+  checked?: EntregaUpdateChecked;
   /** @nullable */
   cliente?: string | null;
   /** @nullable */
@@ -171,14 +252,15 @@ export interface EntregaUpdate {
   placa?: string | null;
   /** @nullable */
   unidade?: EntregaUpdateUnidade;
-  nf?: "none" | "x" | "check";
-  cg?: "none" | "x" | "check";
+  nf?: EntregaUpdateNf;
+  cg?: EntregaUpdateCg;
   /** @nullable */
   v?: EntregaUpdateV;
   /** @nullable */
-  sortOrder?: number | null;
-  /** @nullable */
   divergencias?: string | null;
+  ripack?: boolean;
+  /** @nullable */
+  sortOrder?: number | null;
 }
 
 export interface Motorista {

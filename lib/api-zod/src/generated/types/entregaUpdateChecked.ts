@@ -6,13 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-/**
- * S column state: none=unchecked, filled=checked, confirmed=verified
- */
-export type EntregaChecked = typeof EntregaChecked[keyof typeof EntregaChecked];
+export type EntregaUpdateChecked = typeof EntregaUpdateChecked[keyof typeof EntregaUpdateChecked];
 
 
-export const EntregaChecked = {
+export const EntregaUpdateChecked = {
   none: 'none',
   filled: 'filled',
   confirmed: 'confirmed',

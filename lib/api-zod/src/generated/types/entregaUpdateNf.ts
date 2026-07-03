@@ -6,13 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 
-/**
- * @nullable
- */
-export type EntregaInputV = typeof EntregaInputV[keyof typeof EntregaInputV] | null;
+export type EntregaUpdateNf = typeof EntregaUpdateNf[keyof typeof EntregaUpdateNf];
 
 
-export const EntregaInputV = {
-  V: 'V',
-  '2A': '2A',
+export const EntregaUpdateNf = {
+  none: 'none',
+  x: 'x',
+  check: 'check',
 } as const;

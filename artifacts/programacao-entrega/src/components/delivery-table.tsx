@@ -28,9 +28,9 @@ import { Button } from "@/components/ui/button";
 
 const STORAGE_KEY = "delivery-table-col-widths";
 
-const DEFAULT_WIDTHS = [40, 200, 80, 150, 220, 50, 140, 100, 50, 160, 80];
-const MIN_WIDTHS    = [30,  80, 50,  60, 120, 36,  80,  60, 36, 80, 36];
-const COL_LABELS = ["S", "CLIENTE", "HRS", "OBS", "MOTORISTA • PLACA", "V", "UNIDADE", "NF", "CG", "DIVERGÊNCIAS", ""];
+const DEFAULT_WIDTHS = [40, 200, 80, 150, 220, 60, 50, 140, 100, 50, 160, 80];
+const MIN_WIDTHS    = [30,  80, 50,  60, 120, 50, 36,  80,  60, 36,  80, 36];
+const COL_LABELS = ["S", "CLIENTE", "HRS", "OBS", "MOTORISTA • PLACA", "RIPACK", "V", "UNIDADE", "NF", "CG", "DIVERGÊNCIAS", ""];
 
 function loadWidths(): number[] {
   try {
@@ -214,6 +214,7 @@ function DeliveryRow({ entrega, date, onMoveUp, onMoveDown, isFirst, isLast }: D
     cg: entrega.cg,
     divergencias: entrega.divergencias || "",
     v: entrega.v ?? null,
+    ripack: entrega.ripack ?? false,
   });
 
   const lastSavedRef = useRef(localState);
@@ -234,6 +235,7 @@ function DeliveryRow({ entrega, date, onMoveUp, onMoveDown, isFirst, isLast }: D
         cg: entrega.cg,
         divergencias: entrega.divergencias || "",
         v: entrega.v ?? null,
+        ripack: entrega.ripack ?? false,
       };
       setLocalState(newState);
       lastSavedRef.current = newState;
@@ -296,7 +298,13 @@ function DeliveryRow({ entrega, date, onMoveUp, onMoveDown, isFirst, isLast }: D
     }
   };
 
-  const isRipack = localState.motorista?.toUpperCase() === "RIPACK";
+  const handleRipackToggle = () => {
+    const next = !localState.ripack;
+    setLocalState(prev => ({ ...prev, ripack: next }));
+    saveField("ripack", next);
+  };
+
+  const isRipack = localState.ripack;
   const obsUpper = localState.obs?.toUpperCase() ?? "";
   const isCancelled = obsUpper === "CANCELADA" || obsUpper === "CANCELADO";
 
@@ -383,6 +391,26 @@ function DeliveryRow({ entrega, date, onMoveUp, onMoveDown, isFirst, isLast }: D
           motoristaTestId={`input-motorista-${entrega.id}`}
           placaTestId={`input-placa-${entrega.id}`}
         />
+      </div>
+
+      {/* RIPACK */}
+      <div className="p-1 border-r border-slate-200 flex items-center justify-center overflow-hidden">
+        <button
+          onClick={handleRipackToggle}
+          data-testid={`button-ripack-${entrega.id}`}
+          className={cn(
+            "w-5 h-5 rounded border flex-shrink-0 transition-colors",
+            localState.ripack
+              ? "border-green-700 bg-green-600 text-white flex items-center justify-center"
+              : "border-slate-300 bg-white hover:bg-slate-100"
+          )}
+        >
+          {localState.ripack && (
+            <svg viewBox="0 0 16 16" className="w-3 h-3 fill-current">
+              <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0z"/>
+            </svg>
+          )}
+        </button>
       </div>
 
       {/* V */}
@@ -566,14 +594,16 @@ function NewDeliveryRow({ date, index }: NewDeliveryRowProps) {
         )}
       </div>
 
-      <div className="p-1 border-r border-slate-100 overflow-hidden" />
-      <div className="p-1 border-r border-slate-100 overflow-hidden" />
-      <div className="p-1 border-r border-slate-100 overflow-hidden" />
-      <div className="p-1 border-r border-slate-100 overflow-hidden" />
-      <div className="p-1 border-r border-slate-100 overflow-hidden" />
-      <div className="p-2 border-r border-slate-100 overflow-hidden" />
-      <div className="p-1 border-r border-slate-100 overflow-hidden" />
-      <div className="p-1 overflow-hidden" />
+      <div className="p-1 border-r border-slate-100 overflow-hidden" />{/* HRS */}
+      <div className="p-1 border-r border-slate-100 overflow-hidden" />{/* OBS */}
+      <div className="p-1 border-r border-slate-100 overflow-hidden" />{/* MOTORISTA•PLACA */}
+      <div className="p-1 border-r border-slate-100 overflow-hidden" />{/* RIPACK */}
+      <div className="p-1 border-r border-slate-100 overflow-hidden" />{/* V */}
+      <div className="p-1 border-r border-slate-100 overflow-hidden" />{/* UNIDADE */}
+      <div className="p-2 border-r border-slate-100 overflow-hidden" />{/* NF */}
+      <div className="p-1 border-r border-slate-100 overflow-hidden" />{/* CG */}
+      <div className="p-1 border-r border-slate-100 overflow-hidden" />{/* DIVERGÊNCIAS */}
+      <div className="p-1 overflow-hidden" />{/* actions */}
     </div>
   );
 }

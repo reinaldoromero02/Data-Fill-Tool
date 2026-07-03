@@ -5,16 +5,18 @@
  * API specification for Programação de Entrega
  * OpenAPI spec version: 0.1.0
  */
+import type { EntregaCg } from './entregaCg';
+import type { EntregaChecked } from './entregaChecked';
+import type { EntregaNf } from './entregaNf';
 import type { EntregaUnidade } from './entregaUnidade';
 import type { EntregaV } from './entregaV';
-import type { EntregaChecked } from './entregaChecked';
 
 export interface Entrega {
   id: number;
   /** Date in YYYY-MM-DD format */
   date: string;
   sortOrder: number;
-  /** S column: none, filled (black), confirmed (tick) */
+  /** S column state: none=unchecked, filled=checked, confirmed=verified */
   checked: EntregaChecked;
   cliente: string;
   /**
@@ -39,18 +41,20 @@ export interface Entrega {
   placa: string | null;
   /** Delivery unit */
   unidade: EntregaUnidade;
-  /** NF column: none, x (red), check (green) */
-  nf: "none" | "x" | "check";
-  /** CG column: none, x (red), check (green) */
-  cg: "none" | "x" | "check";
+  /** NF column state: none=empty, x=missing, check=confirmed */
+  nf: EntregaNf;
+  /** CG column state: none=empty, x=missing, check=confirmed */
+  cg: EntregaCg;
   /**
      * V column flag — null=empty, V=concluido, 2A=segunda entrega
      * @nullable
      */
   v: EntregaV;
   /**
-     * Divergencias notes
+     * Divergências / observations column
      * @nullable
      */
-  divergencias: string | null;
+  divergencias?: string | null;
+  /** RIPACK flag — row turns green when true */
+  ripack?: boolean;
 }

@@ -252,8 +252,9 @@ components:
         sortOrder:
           type: integer
         checked:
-          type: boolean
-          description: "S column: row is checked/confirmed"
+          type: string
+          enum: ["none", "filled", "confirmed"]
+          description: "S column state: none=unchecked, filled=checked, confirmed=verified"
         cliente:
           type: string
         hrs:
@@ -273,15 +274,24 @@ components:
           enum: [MATRIZ, FILIAL, "MATRIZ + FILIAL"]
           description: Delivery unit
         nf:
-          type: boolean
-          description: NF column flag — highlighted green when true
+          type: string
+          enum: ["none", "x", "check"]
+          description: "NF column state: none=empty, x=missing, check=confirmed"
         cg:
-          type: boolean
-          description: CG column flag — highlighted green when true
+          type: string
+          enum: ["none", "x", "check"]
+          description: "CG column state: none=empty, x=missing, check=confirmed"
         v:
           type: ["string", "null"]
           enum: ["V", "2A", null]
           description: V column flag — null=empty, V=concluido, 2A=segunda entrega
+        divergencias:
+          type: ["string", "null"]
+          description: Divergências / observations column
+        ripack:
+          type: boolean
+          default: false
+          description: RIPACK flag — row turns green when true
 
     EntregaInput:
       type: object
@@ -295,7 +305,8 @@ components:
         sortOrder:
           type: ["integer", "null"]
         checked:
-          type: boolean
+          type: string
+          enum: ["none", "filled", "confirmed"]
         cliente:
           type: string
         hrs:
@@ -310,18 +321,25 @@ components:
           type: string
           enum: [MATRIZ, FILIAL, "MATRIZ + FILIAL"]
         nf:
-          type: boolean
+          type: string
+          enum: ["none", "x", "check"]
         cg:
-          type: boolean
+          type: string
+          enum: ["none", "x", "check"]
         v:
           type: ["string", "null"]
           enum: ["V", "2A", null]
+        divergencias:
+          type: ["string", "null"]
+        ripack:
+          type: boolean
 
     EntregaUpdate:
       type: object
       properties:
         checked:
-          type: boolean
+          type: string
+          enum: ["none", "filled", "confirmed"]
         cliente:
           type: ["string", "null"]
         hrs:
@@ -336,12 +354,18 @@ components:
           type: ["string", "null"]
           enum: [MATRIZ, FILIAL, "MATRIZ + FILIAL", null]
         nf:
-          type: boolean
+          type: string
+          enum: ["none", "x", "check"]
         cg:
-          type: boolean
+          type: string
+          enum: ["none", "x", "check"]
         v:
           type: ["string", "null"]
           enum: ["V", "2A", null]
+        divergencias:
+          type: ["string", "null"]
+        ripack:
+          type: boolean
         sortOrder:
           type: ["integer", "null"]
 

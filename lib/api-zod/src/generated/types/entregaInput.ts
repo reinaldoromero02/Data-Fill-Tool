@@ -5,15 +5,17 @@
  * API specification for Programação de Entrega
  * OpenAPI spec version: 0.1.0
  */
+import type { EntregaInputCg } from './entregaInputCg';
+import type { EntregaInputChecked } from './entregaInputChecked';
+import type { EntregaInputNf } from './entregaInputNf';
 import type { EntregaInputUnidade } from './entregaInputUnidade';
 import type { EntregaInputV } from './entregaInputV';
-import type { EntregaChecked } from './entregaChecked';
 
 export interface EntregaInput {
   date: string;
   /** @nullable */
   sortOrder?: number | null;
-  checked?: EntregaChecked;
+  checked?: EntregaInputChecked;
   cliente: string;
   /** @nullable */
   hrs?: string | null;
@@ -24,10 +26,11 @@ export interface EntregaInput {
   /** @nullable */
   placa?: string | null;
   unidade: EntregaInputUnidade;
-  nf?: "none" | "x" | "check";
-  cg?: "none" | "x" | "check";
+  nf?: EntregaInputNf;
+  cg?: EntregaInputCg;
   /** @nullable */
   v?: EntregaInputV;
   /** @nullable */
   divergencias?: string | null;
+  ripack?: boolean;
 }

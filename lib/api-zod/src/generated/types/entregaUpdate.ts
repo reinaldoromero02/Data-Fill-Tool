@@ -5,12 +5,14 @@
  * API specification for Programação de Entrega
  * OpenAPI spec version: 0.1.0
  */
+import type { EntregaUpdateCg } from './entregaUpdateCg';
+import type { EntregaUpdateChecked } from './entregaUpdateChecked';
+import type { EntregaUpdateNf } from './entregaUpdateNf';
 import type { EntregaUpdateUnidade } from './entregaUpdateUnidade';
 import type { EntregaUpdateV } from './entregaUpdateV';
-import type { EntregaChecked } from './entregaChecked';
 
 export interface EntregaUpdate {
-  checked?: EntregaChecked;
+  checked?: EntregaUpdateChecked;
   /** @nullable */
   cliente?: string | null;
   /** @nullable */
@@ -23,12 +25,13 @@ export interface EntregaUpdate {
   placa?: string | null;
   /** @nullable */
   unidade?: EntregaUpdateUnidade;
-  nf?: "none" | "x" | "check";
-  cg?: "none" | "x" | "check";
+  nf?: EntregaUpdateNf;
+  cg?: EntregaUpdateCg;
   /** @nullable */
   v?: EntregaUpdateV;
   /** @nullable */
-  sortOrder?: number | null;
-  /** @nullable */
   divergencias?: string | null;
+  ripack?: boolean;
+  /** @nullable */
+  sortOrder?: number | null;
 }
