@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { format, addDays, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Loader2, Printer, WifiOff, RefreshCw, FolderDown, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Loader2, Printer, WifiOff, RefreshCw, FolderDown, X, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
@@ -14,6 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { MotoristasModal } from "@/components/motoristas-modal";
 import { RelatorioModal } from "@/components/relatorio-modal";
 import { useSavePdf } from "@/hooks/use-save-pdf";
+import { usePwaInstall } from "@/hooks/use-pwa-install";
 
 export default function Home() {
   const [date, setDate] = useState<Date>(new Date());
@@ -22,6 +23,7 @@ export default function Home() {
   const isOnline = useOnlineStatus();
   const queryClient = useQueryClient();
   const { savePdf, status: pdfStatus, resetLocation } = useSavePdf();
+  const { canInstall, install } = usePwaInstall();
 
   const dateStr = format(date, "yyyy-MM-dd");
 
@@ -118,6 +120,20 @@ export default function Home() {
               HOJE
             </Button>
           </div>
+
+          {/* PWA install button — only visible when browser offers install */}
+          {canInstall && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={install}
+              className="h-9 gap-2 text-blue-700 border-blue-300 hover:bg-blue-50"
+              title="Instalar aplicativo"
+            >
+              <Download className="w-4 h-4" />
+              Instalar
+            </Button>
+          )}
 
           {/* Motoristas button */}
           <MotoristasModal />
