@@ -44,12 +44,14 @@ interface FretePorDia {
   TRANSPORTADORA?: number;
   "3º"?: number;
   COLETA?: number;
+  CANCELADOS?: number;
 }
 
 interface FreteMensalData {
   mes: string;
   resumo: FreteResumo[];
   porDia: FretePorDia[];
+  canceladosTotal: number;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -271,6 +273,21 @@ function FreteMensalTab() {
   };
 
   const total = data?.resumo.reduce((s, r) => s + r.total, 0) ?? 0;
+  const canceladosTotal = data?.canceladosTotal ?? 0;
+  const hasCancelados = canceladosTotal > 0;
+
+  // Pie data includes cancelados as a separate slice
+  const pieData = [
+    ...( data?.resumo.filter((r) => r.total > 0) ?? [] ),
+    ...(hasCancelados ? [{ frete: "CANCELADOS", total: canceladosTotal }] : []),
+  ];
+
+  const CANCELADOS_COR = "#dc2626";
+  const corOf = (frete: string) => frete === "CANCELADOS" ? CANCELADOS_COR : (FRETE_CORES[frete] ?? "#94a3b8");
+
+  // Which bar series to show
+  const activeFreteTipos = TIPOS.filter((t) => data?.resumo.find((r) => r.frete === t && r.total > 0));
+  const hasCanceladosBar = data?.porDia.some((d) => (d as Record<string, number>)["CANCELADOS"] > 0);
 
   return (
     <div className="flex flex-col gap-4 flex-1 min-h-0">
@@ -286,33 +303,36 @@ function FreteMensalTab() {
 
       {data && !loading && (
         <>
-          {total === 0 ? (
-            <p className="text-sm text-slate-400 text-center py-8 italic">Nenhuma entrega com frete registrado em {mesLabel(mes)}.</p>
+          {total === 0 && !hasCancelados ? (
+            <p className="text-sm text-slate-400 text-center py-8 italic">Nenhuma entrega registrada em {mesLabel(mes)}.</p>
           ) : (
             <div className="flex gap-4 flex-1 min-h-0">
-              {/* Pie chart — totals */}
+              {/* Pie chart + legend */}
               <div className="flex flex-col items-center gap-3 w-52 flex-shrink-0">
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Total do Mês</p>
-                <ResponsiveContainer width="100%" height={180}>
-                  <PieChart>
-                    <Pie
-                      data={data.resumo.filter((r) => r.total > 0)}
-                      dataKey="total"
-                      nameKey="frete"
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={75}
-                      label={({ frete, percent }) => `${Math.round((percent ?? 0) * 100)}%`}
-                      labelLine={false}
-                    >
-                      {data.resumo.filter((r) => r.total > 0).map((entry) => (
-                        <Cell key={entry.frete} fill={FRETE_CORES[entry.frete] ?? "#94a3b8"} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value, name) => [`${value}`, name as string]} />
-                  </PieChart>
-                </ResponsiveContainer>
-                {/* Legend cards */}
+                {pieData.length > 0 && (
+                  <ResponsiveContainer width="100%" height={180}>
+                    <PieChart>
+                      <Pie
+                        data={pieData}
+                        dataKey="total"
+                        nameKey="frete"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={75}
+                        label={({ percent }) => `${Math.round((percent ?? 0) * 100)}%`}
+                        labelLine={false}
+                      >
+                        {pieData.map((entry) => (
+                          <Cell key={entry.frete} fill={corOf(entry.frete)} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value, name) => [`${value}`, name as string]} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
+
+                {/* Legend cards — frete types */}
                 <div className="w-full flex flex-col gap-1">
                   {data.resumo.map((r) => (
                     <div key={r.frete} className="flex items-center justify-between px-2 py-1 rounded text-xs" style={{ background: FRETE_CORES[r.frete] + "18" }}>
@@ -323,6 +343,17 @@ function FreteMensalTab() {
                       <span className="font-bold text-slate-700">{r.total}</span>
                     </div>
                   ))}
+
+                  {/* Cancelados card — always shown in red when > 0 */}
+                  {hasCancelados && (
+                    <div className="flex items-center justify-between px-2 py-1 rounded text-xs mt-1 border border-red-200" style={{ background: "#fef2f2" }}>
+                      <span className="flex items-center gap-1.5 font-semibold text-red-600">
+                        <span className="w-2 h-2 rounded-full inline-block bg-red-600" />
+                        CANCELADOS / X
+                      </span>
+                      <span className="font-bold text-red-700">{canceladosTotal}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -336,17 +367,17 @@ function FreteMensalTab() {
                       <XAxis
                         dataKey="date"
                         tick={{ fontSize: 10 }}
-                        tickFormatter={(v: string) => v.slice(8)} /* day number */
+                        tickFormatter={(v: string) => v.slice(8)}
                       />
                       <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
-                      <Tooltip
-                        contentStyle={{ fontSize: 12 }}
-                        labelFormatter={(v: string) => v}
-                      />
+                      <Tooltip contentStyle={{ fontSize: 12 }} labelFormatter={(v: string) => v} />
                       <Legend iconSize={10} wrapperStyle={{ fontSize: 11 }} />
-                      {TIPOS.filter((t) => data.resumo.find((r) => r.frete === t && r.total > 0)).map((tipo) => (
+                      {activeFreteTipos.map((tipo) => (
                         <Bar key={tipo} dataKey={tipo} stackId="a" fill={FRETE_CORES[tipo]} />
                       ))}
+                      {hasCanceladosBar && (
+                        <Bar dataKey="CANCELADOS" stackId="b" fill={CANCELADOS_COR} />
+                      )}
                     </BarChart>
                   </ResponsiveContainer>
                 </div>

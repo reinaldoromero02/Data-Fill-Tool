@@ -130,41 +130,54 @@ router.get("/entregas/divergencias", async (_req, res): Promise<void> => {
 
 router.get("/entregas/frete-mensal", async (req, res): Promise<void> => {
   const mes = typeof req.query.mes === "string" ? req.query.mes : new Date().toISOString().slice(0, 7);
-  // mes format: YYYY-MM
   const start = `${mes}-01`;
   const end = `${mes}-31`;
 
-  const rows = await db
-    .select({
-      date: entregasTable.date,
-      frete: entregasTable.frete,
-    })
+  // Frete rows
+  const freteRows = await db
+    .select({ date: entregasTable.date, frete: entregasTable.frete })
     .from(entregasTable)
-    .where(
-      sql`${entregasTable.date} >= ${start} AND ${entregasTable.date} <= ${end} AND ${entregasTable.frete} IS NOT NULL`
-    )
+    .where(sql`${entregasTable.date} >= ${start} AND ${entregasTable.date} <= ${end} AND ${entregasTable.frete} IS NOT NULL`)
     .orderBy(asc(entregasTable.date));
 
-  // Build summary per frete type
+  // Cancelados: OBS = CANCELADO/CANCELADA OR nf = 'x' OR cg = 'x'
+  const cancelRows = await db
+    .select({ date: entregasTable.date })
+    .from(entregasTable)
+    .where(sql`
+      ${entregasTable.date} >= ${start} AND ${entregasTable.date} <= ${end}
+      AND (
+        UPPER(${entregasTable.obs}) IN ('CANCELADO', 'CANCELADA')
+        OR ${entregasTable.nf} = 'x'
+        OR ${entregasTable.cg} = 'x'
+      )
+    `)
+    .orderBy(asc(entregasTable.date));
+
+  // Summary per frete type
   const tipos = ["RIPACK", "TRANSPORTADORA", "3º", "COLETA"];
   const resumo = tipos.map((tipo) => ({
     frete: tipo,
-    total: rows.filter((r) => r.frete === tipo).length,
+    total: freteRows.filter((r) => r.frete === tipo).length,
   }));
 
-  // Build per-day breakdown
+  // Per-day breakdown (frete + cancelados merged)
   const diasMap = new Map<string, Record<string, number>>();
-  for (const row of rows) {
+  for (const row of freteRows) {
     if (!diasMap.has(row.date)) diasMap.set(row.date, {});
     const d = diasMap.get(row.date)!;
     d[row.frete!] = (d[row.frete!] ?? 0) + 1;
   }
-  const porDia = Array.from(diasMap.entries()).map(([date, counts]) => ({
-    date,
-    ...counts,
-  }));
+  for (const row of cancelRows) {
+    if (!diasMap.has(row.date)) diasMap.set(row.date, {});
+    const d = diasMap.get(row.date)!;
+    d["CANCELADOS"] = (d["CANCELADOS"] ?? 0) + 1;
+  }
+  const porDia = Array.from(diasMap.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, counts]) => ({ date, ...counts }));
 
-  res.json({ mes, resumo, porDia });
+  res.json({ mes, resumo, porDia, canceladosTotal: cancelRows.length });
 });
 
 router.get("/entregas/:id", async (req, res): Promise<void> => {
