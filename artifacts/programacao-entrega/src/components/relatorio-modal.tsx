@@ -73,12 +73,32 @@ function mesLabel(mes: string) {
   return `${nomes[parseInt(num) - 1]} ${ano}`;
 }
 
+// ─── helpers ──────────────────────────────────────────────────────────────────
+
+function localToday() {
+  const n = new Date();
+  return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}-${String(n.getDate()).padStart(2,"0")}`;
+}
+function localMes() {
+  const n = new Date();
+  return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}`;
+}
+function localAno() { return String(new Date().getFullYear()); }
+
+type FiltroTipo = "dia" | "mes" | "ano";
+
 // ─── Divergencias tab ─────────────────────────────────────────────────────────
 
 function DivergenciasTab() {
   const [data, setData] = useState<Divergencia[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
+
+  // filter state
+  const [filtro, setFiltro] = useState<FiltroTipo>("mes");
+  const [dia, setDia] = useState(localToday);
+  const [mes, setMes] = useState(localMes);
+  const [ano, setAno] = useState(localAno);
 
   useEffect(() => {
     setLoading(true);
@@ -89,10 +109,29 @@ function DivergenciasTab() {
       .finally(() => setLoading(false));
   }, []);
 
+  // client-side filter
+  const filtered = data.filter((d) => {
+    if (filtro === "dia") return d.date === dia;
+    if (filtro === "mes") return d.date.startsWith(mes);
+    return d.date.startsWith(ano);
+  });
+
+  // month nav (timezone-safe)
+  const prevMes = () => {
+    const [a, m] = mes.split("-").map(Number);
+    const p = m === 1 ? 12 : m - 1;
+    setMes(`${m === 1 ? a - 1 : a}-${String(p).padStart(2,"0")}`);
+  };
+  const nextMes = () => {
+    const [a, m] = mes.split("-").map(Number);
+    const p = m === 12 ? 1 : m + 1;
+    setMes(`${m === 12 ? a + 1 : a}-${String(p).padStart(2,"0")}`);
+  };
+
   const exportExcel = () => {
     const rows = [
       ["DATA", "CLIENTE", "MOTORISTA", "PLACA", "DIVERGÊNCIAS"],
-      ...data.map((d) => [d.date, d.cliente, d.motorista ?? "", d.placa ?? "", d.divergencias]),
+      ...filtered.map((d) => [d.date, d.cliente, d.motorista ?? "", d.placa ?? "", d.divergencias]),
     ];
     const xml = rows.map((row) =>
       "<Row>" + row.map((cell) =>
@@ -103,46 +142,99 @@ function DivergenciasTab() {
     const blob = new Blob([ss], { type: "application/vnd.ms-excel" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url; a.download = `divergencias_${new Date().toISOString().slice(0,10)}.xls`; a.click();
+    a.href = url; a.download = `divergencias_${dia}.xls`; a.click();
     URL.revokeObjectURL(url);
   };
 
   if (loading) return <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 text-blue-500 animate-spin" /></div>;
   if (fetchError) return <p className="text-sm text-red-500 text-center py-8">{fetchError}</p>;
-  if (data.length === 0) return <p className="text-sm text-slate-400 text-center py-8 italic">Nenhuma divergência registrada.</p>;
 
   return (
     <>
-      <div className="flex-1 overflow-auto border rounded-md">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-slate-100 text-slate-700 font-semibold text-xs uppercase sticky top-0">
-              <th className="px-3 py-2 text-left">Data</th>
-              <th className="px-3 py-2 text-left">Cliente</th>
-              <th className="px-3 py-2 text-left">Motorista</th>
-              <th className="px-3 py-2 text-left">Placa</th>
-              <th className="px-3 py-2 text-left">Divergências</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.map((d) => (
-              <tr key={d.id} className="border-t border-slate-200 hover:bg-slate-50">
-                <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{d.date}</td>
-                <td className="px-3 py-2 font-medium text-slate-800">{d.cliente}</td>
-                <td className="px-3 py-2 text-slate-600">{d.motorista ?? "-"}</td>
-                <td className="px-3 py-2 text-slate-600 font-mono">{d.placa ?? "-"}</td>
-                <td className="px-3 py-2 text-slate-700">{d.divergencias}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {/* Filter bar */}
+      <div className="flex items-center gap-3 pb-2">
+        {/* Tipo selector */}
+        <div className="flex rounded-md border border-slate-300 overflow-hidden text-xs font-semibold">
+          {(["dia", "mes", "ano"] as FiltroTipo[]).map((t) => (
+            <button
+              key={t}
+              onClick={() => setFiltro(t)}
+              className={`px-3 py-1.5 capitalize transition-colors ${
+                filtro === t ? "bg-blue-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              {t === "dia" ? "Dia" : t === "mes" ? "Mês" : "Ano"}
+            </button>
+          ))}
+        </div>
+
+        {/* Dia picker */}
+        {filtro === "dia" && (
+          <input
+            type="date"
+            value={dia}
+            onChange={(e) => setDia(e.target.value)}
+            className="border border-slate-300 rounded px-2 py-1 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        )}
+
+        {/* Mês navigator */}
+        {filtro === "mes" && (
+          <div className="flex items-center gap-1">
+            <button onClick={prevMes} className="px-2 py-1 rounded border border-slate-300 text-sm hover:bg-slate-100">‹</button>
+            <span className="text-sm font-semibold text-slate-700 w-24 text-center">{mesLabel(mes)}</span>
+            <button onClick={nextMes} className="px-2 py-1 rounded border border-slate-300 text-sm hover:bg-slate-100">›</button>
+          </div>
+        )}
+
+        {/* Ano navigator */}
+        {filtro === "ano" && (
+          <div className="flex items-center gap-1">
+            <button onClick={() => setAno((a) => String(Number(a) - 1))} className="px-2 py-1 rounded border border-slate-300 text-sm hover:bg-slate-100">‹</button>
+            <span className="text-sm font-semibold text-slate-700 w-14 text-center">{ano}</span>
+            <button onClick={() => setAno((a) => String(Number(a) + 1))} className="px-2 py-1 rounded border border-slate-300 text-sm hover:bg-slate-100">›</button>
+          </div>
+        )}
+
+        <span className="text-xs text-slate-400 ml-auto">{filtered.length} registro{filtered.length !== 1 ? "s" : ""}</span>
       </div>
-      <div className="flex justify-end pt-3">
-        <Button size="sm" onClick={exportExcel} className="gap-2 bg-green-700 hover:bg-green-800 text-white">
-          <Download className="w-4 h-4" />
-          Exportar para Excel
-        </Button>
-      </div>
+
+      {filtered.length === 0 ? (
+        <p className="text-sm text-slate-400 text-center py-8 italic">Nenhuma divergência no período selecionado.</p>
+      ) : (
+        <>
+          <div className="flex-1 overflow-auto border rounded-md">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-slate-100 text-slate-700 font-semibold text-xs uppercase sticky top-0">
+                  <th className="px-3 py-2 text-left">Data</th>
+                  <th className="px-3 py-2 text-left">Cliente</th>
+                  <th className="px-3 py-2 text-left">Motorista</th>
+                  <th className="px-3 py-2 text-left">Placa</th>
+                  <th className="px-3 py-2 text-left">Divergências</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((d) => (
+                  <tr key={d.id} className="border-t border-slate-200 hover:bg-slate-50">
+                    <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{d.date}</td>
+                    <td className="px-3 py-2 font-medium text-slate-800">{d.cliente}</td>
+                    <td className="px-3 py-2 text-slate-600">{d.motorista ?? "-"}</td>
+                    <td className="px-3 py-2 text-slate-600 font-mono">{d.placa ?? "-"}</td>
+                    <td className="px-3 py-2 text-slate-700">{d.divergencias}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="flex justify-end pt-3">
+            <Button size="sm" onClick={exportExcel} className="gap-2 bg-green-700 hover:bg-green-800 text-white">
+              <Download className="w-4 h-4" />
+              Exportar para Excel
+            </Button>
+          </div>
+        </>
+      )}
     </>
   );
 }
