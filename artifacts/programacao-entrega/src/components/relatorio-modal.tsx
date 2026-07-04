@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { FileText, Download, Loader2, BarChart2 } from "lucide-react";
+import { FileText, Download, Loader2, BarChart2, Truck } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -73,6 +73,19 @@ function mesLabel(mes: string) {
   const [ano, num] = mes.split("-");
   const nomes = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
   return `${nomes[parseInt(num) - 1]} ${ano}`;
+}
+
+interface MotoristaResult {
+  motorista: string;
+  placa: string | null;
+  total: number;
+}
+
+interface MotoristaRelatorio {
+  filtro: string;
+  valor: string;
+  resultado: MotoristaResult[];
+  totalViagens: number;
 }
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -433,9 +446,199 @@ function FreteMensalTab() {
   );
 }
 
+// ─── Motorista tab ────────────────────────────────────────────────────────────
+
+const MOTORISTA_CORES = [
+  "#2563eb","#16a34a","#d97706","#7c3aed","#0891b2","#db2777","#65a30d","#ea580c",
+  "#0284c7","#dc2626","#9333ea","#059669",
+];
+
+function MotoristaTab() {
+  const [filtro, setFiltro] = useState<FiltroTipo>("mes");
+  const [dia,  setDia]  = useState(localToday);
+  const [mes,  setMes]  = useState(localMes);
+  const [ano,  setAno]  = useState(localAno);
+
+  const [data, setData] = useState<MotoristaRelatorio | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  const valor = filtro === "dia" ? dia : filtro === "mes" ? mes : ano;
+
+  useEffect(() => {
+    setLoading(true);
+    setFetchError(null);
+    fetch(`/api/entregas/motorista-relatorio?filtro=${filtro}&valor=${valor}`)
+      .then((r) => { if (!r.ok) throw new Error(`Erro ${r.status}`); return r.json(); })
+      .then(setData)
+      .catch((err: unknown) => setFetchError(err instanceof Error ? err.message : "Erro"))
+      .finally(() => setLoading(false));
+  }, [filtro, valor]);
+
+  const prevMes = () => {
+    const [a, m] = mes.split("-").map(Number);
+    setMes(`${m === 1 ? a - 1 : a}-${String(m === 1 ? 12 : m - 1).padStart(2,"0")}`);
+  };
+  const nextMes = () => {
+    const [a, m] = mes.split("-").map(Number);
+    setMes(`${m === 12 ? a + 1 : a}-${String(m === 12 ? 1 : m + 1).padStart(2,"0")}`);
+  };
+
+  const exportExcel = () => {
+    if (!data || data.resultado.length === 0) return;
+    const esc = (v: string | number) =>
+      String(v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    const cell = (v: string | number) =>
+      `<Cell><Data ss:Type="${typeof v === "number" ? "Number" : "String"}">${esc(v)}</Data></Cell>`;
+    const row = (cells: (string | number)[]) => `<Row>${cells.map(cell).join("")}</Row>`;
+
+    const rows = [
+      row(["MOTORISTA","PLACA","VIAGENS"]),
+      ...data.resultado.map((r) => row([r.motorista, r.placa ?? "-", r.total])),
+      "<Row/>",
+      row(["TOTAL","",data.totalViagens]),
+    ].join("");
+
+    const ss = `<?xml version="1.0" encoding="UTF-8"?><?mso-application progid="Excel.Sheet"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Worksheet ss:Name="Motoristas"><Table>${rows}</Table></Worksheet></Workbook>`;
+    const blob = new Blob([ss], { type: "application/vnd.ms-excel" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `motoristas_${filtro}_${valor}.xls`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const periodoLabel =
+    filtro === "dia" ? dia :
+    filtro === "mes" ? mesLabel(mes) :
+    ano;
+
+  return (
+    <div className="flex flex-col gap-3 flex-1 min-h-0">
+      {/* Filter bar */}
+      <div className="flex items-center gap-3">
+        <div className="flex rounded-md border border-slate-300 overflow-hidden text-xs font-semibold">
+          {(["dia","mes","ano"] as FiltroTipo[]).map((t) => (
+            <button key={t} onClick={() => setFiltro(t)}
+              className={`px-3 py-1.5 transition-colors ${filtro === t ? "bg-blue-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}>
+              {t === "dia" ? "Dia" : t === "mes" ? "Mês" : "Ano"}
+            </button>
+          ))}
+        </div>
+
+        {filtro === "dia" && (
+          <input type="date" value={dia} onChange={(e) => setDia(e.target.value)}
+            className="border border-slate-300 rounded px-2 py-1 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        )}
+        {filtro === "mes" && (
+          <div className="flex items-center gap-1">
+            <button onClick={prevMes} className="px-2 py-1 rounded border border-slate-300 text-sm hover:bg-slate-100">‹</button>
+            <span className="text-sm font-semibold text-slate-700 w-24 text-center">{mesLabel(mes)}</span>
+            <button onClick={nextMes} className="px-2 py-1 rounded border border-slate-300 text-sm hover:bg-slate-100">›</button>
+          </div>
+        )}
+        {filtro === "ano" && (
+          <div className="flex items-center gap-1">
+            <button onClick={() => setAno((a) => String(Number(a) - 1))} className="px-2 py-1 rounded border border-slate-300 text-sm hover:bg-slate-100">‹</button>
+            <span className="text-sm font-semibold text-slate-700 w-14 text-center">{ano}</span>
+            <button onClick={() => setAno((a) => String(Number(a) + 1))} className="px-2 py-1 rounded border border-slate-300 text-sm hover:bg-slate-100">›</button>
+          </div>
+        )}
+
+        {data && !loading && (
+          <span className="text-xs text-slate-400 ml-auto">
+            {data.totalViagens} viagem{data.totalViagens !== 1 ? "s" : ""} · {periodoLabel}
+          </span>
+        )}
+      </div>
+
+      {loading && <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 text-blue-500 animate-spin" /></div>}
+      {fetchError && <p className="text-sm text-red-500 text-center py-8">{fetchError}</p>}
+
+      {data && !loading && (
+        <>
+          {data.resultado.length === 0 ? (
+            <p className="text-sm text-slate-400 text-center py-8 italic">Nenhuma viagem registrada no período.</p>
+          ) : (
+            <>
+              {/* Horizontal bar chart */}
+              <div className="flex-shrink-0">
+                <ResponsiveContainer width="100%" height={Math.max(120, data.resultado.length * 36)}>
+                  <BarChart
+                    data={data.resultado.map((r, i) => ({
+                      nome: r.placa ? `${r.motorista} · ${r.placa}` : r.motorista,
+                      viagens: r.total,
+                      cor: MOTORISTA_CORES[i % MOTORISTA_CORES.length],
+                    }))}
+                    layout="vertical"
+                    margin={{ top: 2, right: 40, left: 8, bottom: 2 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} />
+                    <XAxis type="number" tick={{ fontSize: 10 }} allowDecimals={false} />
+                    <YAxis type="category" dataKey="nome" tick={{ fontSize: 11 }} width={160} />
+                    <Tooltip formatter={(v) => [`${v} viagem${Number(v) !== 1 ? "s" : ""}`, "Total"]} />
+                    <Bar dataKey="viagens" radius={[0, 4, 4, 0]}>
+                      {data.resultado.map((_, i) => (
+                        <Cell key={i} fill={MOTORISTA_CORES[i % MOTORISTA_CORES.length]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Summary table */}
+              <div className="flex-1 overflow-auto border rounded-md">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-slate-100 text-slate-700 font-semibold text-xs uppercase sticky top-0">
+                      <th className="px-3 py-2 text-left">#</th>
+                      <th className="px-3 py-2 text-left">Motorista</th>
+                      <th className="px-3 py-2 text-left">Placa</th>
+                      <th className="px-3 py-2 text-center">Viagens</th>
+                      <th className="px-3 py-2 text-left">Participação</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.resultado.map((r, i) => {
+                      const pct = data.totalViagens > 0 ? Math.round((r.total / data.totalViagens) * 100) : 0;
+                      const cor = MOTORISTA_CORES[i % MOTORISTA_CORES.length];
+                      return (
+                        <tr key={`${r.motorista}-${r.placa}`} className="border-t border-slate-200 hover:bg-slate-50">
+                          <td className="px-3 py-2 text-slate-400 text-xs">{i + 1}</td>
+                          <td className="px-3 py-2 font-medium text-slate-800">{r.motorista}</td>
+                          <td className="px-3 py-2 font-mono text-slate-600">{r.placa ?? "—"}</td>
+                          <td className="px-3 py-2 text-center font-bold" style={{ color: cor }}>{r.total}</td>
+                          <td className="px-3 py-2">
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 bg-slate-100 rounded-full h-2">
+                                <div className="h-2 rounded-full" style={{ width: `${pct}%`, background: cor }} />
+                              </div>
+                              <span className="text-xs text-slate-500 w-8 text-right">{pct}%</span>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="flex justify-end pt-1">
+                <Button size="sm" onClick={exportExcel} className="gap-2 bg-green-700 hover:bg-green-800 text-white">
+                  <Download className="w-4 h-4" />
+                  Exportar para Excel
+                </Button>
+              </div>
+            </>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 // ─── Main modal ───────────────────────────────────────────────────────────────
 
-type Tab = "divergencias" | "frete";
+type Tab = "divergencias" | "frete" | "motoristas";
 
 export function RelatorioModal() {
   const [open, setOpen] = useState(false);
@@ -460,8 +663,9 @@ export function RelatorioModal() {
         {/* Tabs */}
         <div className="flex border-b border-slate-200 gap-1 -mx-1 px-1">
           {([
-            { key: "divergencias", label: "Divergências", icon: <FileText className="w-3.5 h-3.5" /> },
-            { key: "frete", label: "Frete Mensal", icon: <BarChart2 className="w-3.5 h-3.5" /> },
+            { key: "divergencias", label: "Divergências",     icon: <FileText className="w-3.5 h-3.5" /> },
+            { key: "frete",        label: "Frete Mensal",     icon: <BarChart2 className="w-3.5 h-3.5" /> },
+            { key: "motoristas",   label: "Viagens/Motorista", icon: <Truck className="w-3.5 h-3.5" /> },
           ] as { key: Tab; label: string; icon: React.ReactNode }[]).map(({ key, label, icon }) => (
             <button
               key={key}
@@ -480,6 +684,7 @@ export function RelatorioModal() {
         <div className="flex-1 flex flex-col min-h-0 pt-1">
           {open && tab === "divergencias" && <DivergenciasTab />}
           {open && tab === "frete" && <FreteMensalTab />}
+          {open && tab === "motoristas" && <MotoristaTab />}
         </div>
       </DialogContent>
     </Dialog>

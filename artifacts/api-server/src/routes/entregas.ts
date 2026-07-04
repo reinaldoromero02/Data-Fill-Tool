@@ -180,6 +180,45 @@ router.get("/entregas/frete-mensal", async (req, res): Promise<void> => {
   res.json({ mes, resumo, porDia, canceladosTotal: cancelRows.length });
 });
 
+router.get("/entregas/motorista-relatorio", async (req, res): Promise<void> => {
+  const filtro = typeof req.query.filtro === "string" ? req.query.filtro : "mes";
+  const valor  = typeof req.query.valor  === "string" ? req.query.valor  : new Date().toISOString().slice(0, 7);
+
+  let whereExpr;
+  if (filtro === "dia") {
+    whereExpr = sql`${entregasTable.date} = ${valor}
+      AND ${entregasTable.motorista} IS NOT NULL
+      AND ${entregasTable.motorista} <> ''`;
+  } else if (filtro === "mes") {
+    whereExpr = sql`${entregasTable.date} >= ${valor + "-01"}
+      AND ${entregasTable.date} <= ${valor + "-31"}
+      AND ${entregasTable.motorista} IS NOT NULL
+      AND ${entregasTable.motorista} <> ''`;
+  } else {
+    whereExpr = sql`${entregasTable.date} >= ${valor + "-01-01"}
+      AND ${entregasTable.date} <= ${valor + "-12-31"}
+      AND ${entregasTable.motorista} IS NOT NULL
+      AND ${entregasTable.motorista} <> ''`;
+  }
+
+  const rows = await db
+    .select({ motorista: entregasTable.motorista, placa: entregasTable.placa, date: entregasTable.date })
+    .from(entregasTable)
+    .where(whereExpr)
+    .orderBy(asc(entregasTable.date));
+
+  // Group by motorista + placa
+  const grouped = new Map<string, { motorista: string; placa: string | null; total: number }>();
+  for (const row of rows) {
+    const key = `${row.motorista}||${row.placa ?? ""}`;
+    if (!grouped.has(key)) grouped.set(key, { motorista: row.motorista!, placa: row.placa, total: 0 });
+    grouped.get(key)!.total++;
+  }
+
+  const resultado = Array.from(grouped.values()).sort((a, b) => b.total - a.total);
+  res.json({ filtro, valor, resultado, totalViagens: rows.length });
+});
+
 router.get("/entregas/:id", async (req, res): Promise<void> => {
   const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const params = GetEntregaParams.safeParse({ id: parseInt(rawId, 10) });
