@@ -271,7 +271,7 @@ function DeliveryRow({ entrega, date, onMoveUp, onMoveDown, isFirst, isLast }: D
 
   const handleNfcgCycle = (field: "nf" | "cg") => () => {
     const cur = localState[field];
-    const next = cur === "none" ? "x" : cur === "x" ? "check" : "none";
+    const next = cur === "none" ? "check" : cur === "check" ? "x" : "none";
     setLocalState(prev => ({ ...prev, [field]: next }));
     saveField(field, next);
   };
