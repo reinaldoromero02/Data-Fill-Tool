@@ -166,14 +166,16 @@ function FreteMensalTab() {
   }, [mes]);
 
   const prevMes = () => {
-    const d = new Date(`${mes}-01`);
-    d.setMonth(d.getMonth() - 1);
-    setMes(d.toISOString().slice(0, 7));
+    const [ano, num] = mes.split("-").map(Number);
+    const p = num === 1 ? 12 : num - 1;
+    const a = num === 1 ? ano - 1 : ano;
+    setMes(`${a}-${String(p).padStart(2, "0")}`);
   };
   const nextMes = () => {
-    const d = new Date(`${mes}-01`);
-    d.setMonth(d.getMonth() + 1);
-    setMes(d.toISOString().slice(0, 7));
+    const [ano, num] = mes.split("-").map(Number);
+    const p = num === 12 ? 1 : num + 1;
+    const a = num === 12 ? ano + 1 : ano;
+    setMes(`${a}-${String(p).padStart(2, "0")}`);
   };
 
   const total = data?.resumo.reduce((s, r) => s + r.total, 0) ?? 0;
