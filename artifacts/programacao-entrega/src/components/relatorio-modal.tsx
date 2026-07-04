@@ -287,7 +287,42 @@ function FreteMensalTab() {
 
   // Which bar series to show
   const activeFreteTipos = TIPOS.filter((t) => data?.resumo.find((r) => r.frete === t && r.total > 0));
-  const hasCanceladosBar = data?.porDia.some((d) => (d as Record<string, number>)["CANCELADOS"] > 0);
+  const hasCanceladosBar = data?.porDia.some((d) => (d as unknown as Record<string, number>)["CANCELADOS"] > 0);
+
+  const exportExcel = () => {
+    if (!data) return;
+    const esc = (v: string | number) =>
+      String(v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const cell = (v: string | number) =>
+      `<Cell><Data ss:Type="${typeof v === "number" ? "Number" : "String"}">${esc(v)}</Data></Cell>`;
+    const row = (cells: (string | number)[]) =>
+      `<Row>${cells.map(cell).join("")}</Row>`;
+
+    const allCols = [...TIPOS, ...(data.canceladosTotal > 0 ? ["CANCELADOS"] : [])];
+
+    const rows = [
+      // ── Resumo ──
+      row(["TIPO DE FRETE", "TOTAL"]),
+      ...data.resumo.map((r) => row([r.frete, r.total])),
+      ...(data.canceladosTotal > 0 ? [row(["CANCELADOS / X", data.canceladosTotal])] : []),
+      // blank separator
+      "<Row/>",
+      // ── Por dia ──
+      row(["DATA", ...allCols]),
+      ...data.porDia.map((d) =>
+        row([d.date, ...allCols.map((c) => ((d as unknown as Record<string, number>)[c] ?? 0))])
+      ),
+    ].join("");
+
+    const ss = `<?xml version="1.0" encoding="UTF-8"?><?mso-application progid="Excel.Sheet"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Worksheet ss:Name="Frete ${mes}"><Table>${rows}</Table></Worksheet></Workbook>`;
+    const blob = new Blob([ss], { type: "application/vnd.ms-excel" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `frete-mensal_${mes}.xls`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="flex flex-col gap-4 flex-1 min-h-0">
@@ -306,6 +341,7 @@ function FreteMensalTab() {
           {total === 0 && !hasCancelados ? (
             <p className="text-sm text-slate-400 text-center py-8 italic">Nenhuma entrega registrada em {mesLabel(mes)}.</p>
           ) : (
+            <>
             <div className="flex gap-4 flex-1 min-h-0">
               {/* Pie chart + legend */}
               <div className="flex flex-col items-center gap-3 w-52 flex-shrink-0">
@@ -383,6 +419,13 @@ function FreteMensalTab() {
                 </div>
               )}
             </div>
+            <div className="flex justify-end pt-1">
+              <Button size="sm" onClick={exportExcel} className="gap-2 bg-green-700 hover:bg-green-800 text-white">
+                <Download className="w-4 h-4" />
+                Exportar para Excel
+              </Button>
+            </div>
+            </>
           )}
         </>
       )}
