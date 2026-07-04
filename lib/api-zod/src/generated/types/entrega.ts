@@ -7,6 +7,7 @@
  */
 import type { EntregaCg } from './entregaCg';
 import type { EntregaChecked } from './entregaChecked';
+import type { EntregaFrete } from './entregaFrete';
 import type { EntregaNf } from './entregaNf';
 import type { EntregaUnidade } from './entregaUnidade';
 import type { EntregaV } from './entregaV';
@@ -55,6 +56,9 @@ export interface Entrega {
      * @nullable
      */
   divergencias?: string | null;
-  /** RIPACK flag — row turns green when true */
-  ripack?: boolean;
+  /**
+     * Tipo de frete: RIPACK=verde, TRANSPORTADORA, 3º, COLETA
+     * @nullable
+     */
+  frete?: EntregaFrete;
 }

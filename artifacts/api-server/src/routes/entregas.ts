@@ -128,6 +128,45 @@ router.get("/entregas/divergencias", async (_req, res): Promise<void> => {
   res.json(rows);
 });
 
+router.get("/entregas/frete-mensal", async (req, res): Promise<void> => {
+  const mes = typeof req.query.mes === "string" ? req.query.mes : new Date().toISOString().slice(0, 7);
+  // mes format: YYYY-MM
+  const start = `${mes}-01`;
+  const end = `${mes}-31`;
+
+  const rows = await db
+    .select({
+      date: entregasTable.date,
+      frete: entregasTable.frete,
+    })
+    .from(entregasTable)
+    .where(
+      sql`${entregasTable.date} >= ${start} AND ${entregasTable.date} <= ${end} AND ${entregasTable.frete} IS NOT NULL`
+    )
+    .orderBy(asc(entregasTable.date));
+
+  // Build summary per frete type
+  const tipos = ["RIPACK", "TRANSPORTADORA", "3º", "COLETA"];
+  const resumo = tipos.map((tipo) => ({
+    frete: tipo,
+    total: rows.filter((r) => r.frete === tipo).length,
+  }));
+
+  // Build per-day breakdown
+  const diasMap = new Map<string, Record<string, number>>();
+  for (const row of rows) {
+    if (!diasMap.has(row.date)) diasMap.set(row.date, {});
+    const d = diasMap.get(row.date)!;
+    d[row.frete!] = (d[row.frete!] ?? 0) + 1;
+  }
+  const porDia = Array.from(diasMap.entries()).map(([date, counts]) => ({
+    date,
+    ...counts,
+  }));
+
+  res.json({ mes, resumo, porDia });
+});
+
 router.get("/entregas/:id", async (req, res): Promise<void> => {
   const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const params = GetEntregaParams.safeParse({ id: parseInt(rawId, 10) });

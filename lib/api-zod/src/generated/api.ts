@@ -24,8 +24,6 @@ export const ListEntregasQueryParams = zod.object({
   "date": zod.coerce.string().optional().describe('Date in YYYY-MM-DD format (defaults to today)')
 })
 
-export const listEntregasResponseRipackDefault = false;
-
 export const ListEntregasResponseItem = zod.object({
   "id": zod.number(),
   "date": zod.string().describe('Date in YYYY-MM-DD format'),
@@ -41,7 +39,7 @@ export const ListEntregasResponseItem = zod.object({
   "cg": zod.enum(['none', 'x', 'check']).describe('CG column state: none=empty, x=missing, check=confirmed'),
   "v": zod.union([zod.literal('V'),zod.literal('2A'),zod.literal(null)]).nullable().describe('V column flag — null=empty, V=concluido, 2A=segunda entrega'),
   "divergencias": zod.string().nullish().describe('Divergências \/ observations column'),
-  "ripack": zod.boolean().default(listEntregasResponseRipackDefault).describe('RIPACK flag — row turns green when true')
+  "frete": zod.union([zod.literal('RIPACK'),zod.literal('TRANSPORTADORA'),zod.literal('3º'),zod.literal('COLETA'),zod.literal(null)]).nullish().describe('Tipo de frete: RIPACK=verde, TRANSPORTADORA, 3º, COLETA')
 })
 export const ListEntregasResponse = zod.array(ListEntregasResponseItem)
 
@@ -63,10 +61,8 @@ export const CreateEntregaBody = zod.object({
   "cg": zod.enum(['none', 'x', 'check']).optional(),
   "v": zod.union([zod.literal('V'),zod.literal('2A'),zod.literal(null)]).nullish(),
   "divergencias": zod.string().nullish(),
-  "ripack": zod.boolean().optional()
+  "frete": zod.union([zod.literal('RIPACK'),zod.literal('TRANSPORTADORA'),zod.literal('3º'),zod.literal('COLETA'),zod.literal(null)]).nullish()
 })
-
-export const createEntregaResponseRipackDefault = false;
 
 export const CreateEntregaResponse = zod.object({
   "id": zod.number(),
@@ -83,7 +79,7 @@ export const CreateEntregaResponse = zod.object({
   "cg": zod.enum(['none', 'x', 'check']).describe('CG column state: none=empty, x=missing, check=confirmed'),
   "v": zod.union([zod.literal('V'),zod.literal('2A'),zod.literal(null)]).nullable().describe('V column flag — null=empty, V=concluido, 2A=segunda entrega'),
   "divergencias": zod.string().nullish().describe('Divergências \/ observations column'),
-  "ripack": zod.boolean().default(createEntregaResponseRipackDefault).describe('RIPACK flag — row turns green when true')
+  "frete": zod.union([zod.literal('RIPACK'),zod.literal('TRANSPORTADORA'),zod.literal('3º'),zod.literal('COLETA'),zod.literal(null)]).nullish().describe('Tipo de frete: RIPACK=verde, TRANSPORTADORA, 3º, COLETA')
 })
 
 
@@ -93,8 +89,6 @@ export const CreateEntregaResponse = zod.object({
 export const GetEntregaParams = zod.object({
   "id": zod.coerce.number()
 })
-
-export const getEntregaResponseRipackDefault = false;
 
 export const GetEntregaResponse = zod.object({
   "id": zod.number(),
@@ -111,7 +105,7 @@ export const GetEntregaResponse = zod.object({
   "cg": zod.enum(['none', 'x', 'check']).describe('CG column state: none=empty, x=missing, check=confirmed'),
   "v": zod.union([zod.literal('V'),zod.literal('2A'),zod.literal(null)]).nullable().describe('V column flag — null=empty, V=concluido, 2A=segunda entrega'),
   "divergencias": zod.string().nullish().describe('Divergências \/ observations column'),
-  "ripack": zod.boolean().default(getEntregaResponseRipackDefault).describe('RIPACK flag — row turns green when true')
+  "frete": zod.union([zod.literal('RIPACK'),zod.literal('TRANSPORTADORA'),zod.literal('3º'),zod.literal('COLETA'),zod.literal(null)]).nullish().describe('Tipo de frete: RIPACK=verde, TRANSPORTADORA, 3º, COLETA')
 })
 
 
@@ -134,11 +128,9 @@ export const UpdateEntregaBody = zod.object({
   "cg": zod.enum(['none', 'x', 'check']).optional(),
   "v": zod.union([zod.literal('V'),zod.literal('2A'),zod.literal(null)]).nullish(),
   "divergencias": zod.string().nullish(),
-  "ripack": zod.boolean().optional(),
+  "frete": zod.union([zod.literal('RIPACK'),zod.literal('TRANSPORTADORA'),zod.literal('3º'),zod.literal('COLETA'),zod.literal(null)]).nullish(),
   "sortOrder": zod.number().nullish()
 })
-
-export const updateEntregaResponseRipackDefault = false;
 
 export const UpdateEntregaResponse = zod.object({
   "id": zod.number(),
@@ -155,7 +147,7 @@ export const UpdateEntregaResponse = zod.object({
   "cg": zod.enum(['none', 'x', 'check']).describe('CG column state: none=empty, x=missing, check=confirmed'),
   "v": zod.union([zod.literal('V'),zod.literal('2A'),zod.literal(null)]).nullable().describe('V column flag — null=empty, V=concluido, 2A=segunda entrega'),
   "divergencias": zod.string().nullish().describe('Divergências \/ observations column'),
-  "ripack": zod.boolean().default(updateEntregaResponseRipackDefault).describe('RIPACK flag — row turns green when true')
+  "frete": zod.union([zod.literal('RIPACK'),zod.literal('TRANSPORTADORA'),zod.literal('3º'),zod.literal('COLETA'),zod.literal(null)]).nullish().describe('Tipo de frete: RIPACK=verde, TRANSPORTADORA, 3º, COLETA')
 })
 
 

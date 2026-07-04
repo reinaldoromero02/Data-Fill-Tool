@@ -7,6 +7,7 @@
  */
 import type { EntregaInputCg } from './entregaInputCg';
 import type { EntregaInputChecked } from './entregaInputChecked';
+import type { EntregaInputFrete } from './entregaInputFrete';
 import type { EntregaInputNf } from './entregaInputNf';
 import type { EntregaInputUnidade } from './entregaInputUnidade';
 import type { EntregaInputV } from './entregaInputV';
@@ -32,5 +33,6 @@ export interface EntregaInput {
   v?: EntregaInputV;
   /** @nullable */
   divergencias?: string | null;
-  ripack?: boolean;
+  /** @nullable */
+  frete?: EntregaInputFrete;
 }

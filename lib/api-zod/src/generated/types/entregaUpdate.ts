@@ -7,6 +7,7 @@
  */
 import type { EntregaUpdateCg } from './entregaUpdateCg';
 import type { EntregaUpdateChecked } from './entregaUpdateChecked';
+import type { EntregaUpdateFrete } from './entregaUpdateFrete';
 import type { EntregaUpdateNf } from './entregaUpdateNf';
 import type { EntregaUpdateUnidade } from './entregaUpdateUnidade';
 import type { EntregaUpdateV } from './entregaUpdateV';
@@ -31,7 +32,8 @@ export interface EntregaUpdate {
   v?: EntregaUpdateV;
   /** @nullable */
   divergencias?: string | null;
-  ripack?: boolean;
+  /** @nullable */
+  frete?: EntregaUpdateFrete;
   /** @nullable */
   sortOrder?: number | null;
 }

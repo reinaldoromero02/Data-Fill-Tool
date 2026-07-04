@@ -69,6 +69,20 @@ export const EntregaV = {
   '2A': '2A',
 } as const;
 
+/**
+ * Tipo de frete: RIPACK=verde, TRANSPORTADORA, 3º, COLETA
+ * @nullable
+ */
+export type EntregaFrete = typeof EntregaFrete[keyof typeof EntregaFrete] | null;
+
+
+export const EntregaFrete = {
+  RIPACK: 'RIPACK',
+  TRANSPORTADORA: 'TRANSPORTADORA',
+  '3º': '3º',
+  COLETA: 'COLETA',
+} as const;
+
 export interface Entrega {
   id: number;
   /** Date in YYYY-MM-DD format */
@@ -113,8 +127,11 @@ export interface Entrega {
      * @nullable
      */
   divergencias?: string | null;
-  /** RIPACK flag — row turns green when true */
-  ripack?: boolean;
+  /**
+     * Tipo de frete: RIPACK=verde, TRANSPORTADORA, 3º, COLETA
+     * @nullable
+     */
+  frete?: EntregaFrete;
 }
 
 export type EntregaInputChecked = typeof EntregaInputChecked[keyof typeof EntregaInputChecked];
@@ -164,6 +181,19 @@ export const EntregaInputV = {
   '2A': '2A',
 } as const;
 
+/**
+ * @nullable
+ */
+export type EntregaInputFrete = typeof EntregaInputFrete[keyof typeof EntregaInputFrete] | null;
+
+
+export const EntregaInputFrete = {
+  RIPACK: 'RIPACK',
+  TRANSPORTADORA: 'TRANSPORTADORA',
+  '3º': '3º',
+  COLETA: 'COLETA',
+} as const;
+
 export interface EntregaInput {
   date: string;
   /** @nullable */
@@ -185,7 +215,8 @@ export interface EntregaInput {
   v?: EntregaInputV;
   /** @nullable */
   divergencias?: string | null;
-  ripack?: boolean;
+  /** @nullable */
+  frete?: EntregaInputFrete;
 }
 
 export type EntregaUpdateChecked = typeof EntregaUpdateChecked[keyof typeof EntregaUpdateChecked];
@@ -238,6 +269,19 @@ export const EntregaUpdateV = {
   '2A': '2A',
 } as const;
 
+/**
+ * @nullable
+ */
+export type EntregaUpdateFrete = typeof EntregaUpdateFrete[keyof typeof EntregaUpdateFrete] | null;
+
+
+export const EntregaUpdateFrete = {
+  RIPACK: 'RIPACK',
+  TRANSPORTADORA: 'TRANSPORTADORA',
+  '3º': '3º',
+  COLETA: 'COLETA',
+} as const;
+
 export interface EntregaUpdate {
   checked?: EntregaUpdateChecked;
   /** @nullable */
@@ -258,7 +302,8 @@ export interface EntregaUpdate {
   v?: EntregaUpdateV;
   /** @nullable */
   divergencias?: string | null;
-  ripack?: boolean;
+  /** @nullable */
+  frete?: EntregaUpdateFrete;
   /** @nullable */
   sortOrder?: number | null;
 }
