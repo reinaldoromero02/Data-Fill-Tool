@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: programacao-entrega-api
+    env: node
+    region: ohio
+    plan: free
+    buildCommand: pnpm install && pnpm --filter @workspace/api-server run build
+    startCommand: node --enable-source-maps artifacts/api-server/dist/index.mjs
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false          # you paste the Render Postgres URL here
+      - key: SESSION_SECRET
+        generateValue: true  # Render auto-generates a random secret
