@@ -1,5 +1,8 @@
 {
   "buildCommand": "pnpm install && BASE_PATH=/ pnpm --filter @workspace/programacao-entrega run build",
   "outputDirectory": "artifacts/programacao-entrega/dist/public",
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }
