@@ -1,0 +1,1 @@
+- [Deployment Setup](deployment.md) — Vercel (frontend) + Render (backend) + GitHub config; use URL import to bypass GitHub App account mismatch
