@@ -1,5 +1,5 @@
 {
-  "buildCommand": "pnpm install && BASE_PATH=/ pnpm --filter @workspace/programacao-entrega run build",
+  "buildCommand": "pnpm install && BASE_PATH=/ VITE_API_URL=https://data-fill-tool.onrender.com pnpm --filter @workspace/programacao-entrega run build",
   "outputDirectory": "artifacts/programacao-entrega/dist/public",
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
