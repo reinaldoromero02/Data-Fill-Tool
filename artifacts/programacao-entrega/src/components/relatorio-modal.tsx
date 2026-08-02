@@ -1,5 +1,12 @@
 import { useState, useEffect } from "react";
 import { FileText, Download, Loader2, BarChart2, Truck } from "lucide-react";
+
+const API_BASE = (import.meta.env.VITE_API_URL || "https://data-fill-tool.onrender.com").replace(/\/+$/, "");
+const apiFetch = <T = unknown>(path: string): Promise<T> =>
+  fetch(`${API_BASE}${path}`).then((r) => {
+    if (!r.ok) throw new Error(`Erro ${r.status}`);
+    return r.json() as Promise<T>;
+  });
 import {
   Dialog,
   DialogContent,
@@ -117,8 +124,7 @@ function DivergenciasTab() {
 
   useEffect(() => {
     setLoading(true);
-    fetch("/api/entregas/divergencias")
-      .then((r) => { if (!r.ok) throw new Error(`Erro ${r.status}`); return r.json(); })
+    apiFetch<Divergencia[]>("/api/entregas/divergencias")
       .then(setData)
       .catch((err: unknown) => setFetchError(err instanceof Error ? err.message : "Erro"))
       .finally(() => setLoading(false));
@@ -265,8 +271,7 @@ function FreteMensalTab() {
   useEffect(() => {
     setLoading(true);
     setFetchError(null);
-    fetch(`/api/entregas/frete-mensal?mes=${mes}`)
-      .then((r) => { if (!r.ok) throw new Error(`Erro ${r.status}`); return r.json(); })
+    apiFetch<FreteMensalData>(`/api/entregas/frete-mensal?mes=${mes}`)
       .then(setData)
       .catch((err: unknown) => setFetchError(err instanceof Error ? err.message : "Erro"))
       .finally(() => setLoading(false));
@@ -468,8 +473,7 @@ function MotoristaTab() {
   useEffect(() => {
     setLoading(true);
     setFetchError(null);
-    fetch(`/api/entregas/motorista-relatorio?filtro=${filtro}&valor=${valor}`)
-      .then((r) => { if (!r.ok) throw new Error(`Erro ${r.status}`); return r.json(); })
+    apiFetch<MotoristaRelatorio>(`/api/entregas/motorista-relatorio?filtro=${filtro}&valor=${valor}`)
       .then(setData)
       .catch((err: unknown) => setFetchError(err instanceof Error ? err.message : "Erro"))
       .finally(() => setLoading(false));
