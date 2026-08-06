@@ -1,34 +1,34 @@
 ---
 name: Deployment Setup
-description: GitHub + Vercel + Render deployment configuration and lessons learned
+description: Vercel + Render deployment config, repos, and sync workflow for Programação de Entrega
 ---
 
-# Deployment Setup
+## Repos
+- **Source (Replit pushes here)**: `reinaldoromero02/Data-Fill-Tool` (with zero)
+  - ⚠️ `gitPush` tool returns success but does NOT actually reach remote (auth mismatch). Do NOT rely on it.
+- **Mirror (Vercel + Render pull from here)**: `reinaldoromero2/programacao-entrega` (without zero)
+  - Updated via `GITHUB_PERSONAL_ACCESS_TOKEN` (for `reinaldoromero2` account)
+  - Run `bash scripts/sync-mirror.sh` after any code change to push to mirror
 
-## Frontend — Vercel
-- Project name: `programacao-entrega`
-- Vercel team: `reinaldoromero2carga-facil` (Hobby)
-- Deployed via URL import from `reinaldoromero02/Data-Fill-Tool` (GitHub)
-- `VITE_API_URL = https://programa-odeentrega.onrender.com`
-- `vercel.json` at repo root handles build command, output dir, SPA rewrites
+## Services
+- **Vercel**: `programacao-entrega.vercel.app` — auto-deploys on mirror push
+- **Render**: `https://data-fill-tool.onrender.com` — service ID `srv-d9n4levlk1mc73dns1n0`
+  - Now connected to mirror repo `reinaldoromero2/programacao-entrega`
+  - Build: `pnpm install` (uses pre-built `artifacts/api-server/dist/index.mjs`)
+  - Start: `node --enable-source-maps artifacts/api-server/dist/index.mjs`
+  - Auto-deploy: yes (triggers on mirror push)
+  - Trigger deploy via: `curl -X POST -H "Authorization: Bearer $RENDER_API_KEY" https://api.render.com/v1/services/srv-d9n4levlk1mc73dns1n0/deploys -d '{"clearCache":"do_not_clear"}'`
 
-## Backend — Render
-- Service name: `programa-odeentrega`
-- URL: `https://programa-odeentrega.onrender.com`
-- Build: `pnpm install && pnpm --filter @workspace/api-server run build`
-- Start: `node --enable-source-maps artifacts/api-server/dist/index.mjs`
-- Requires: `DATABASE_URL` (Render Postgres), `SESSION_SECRET`, `NODE_ENV=production`
+## Standard deploy workflow
+1. Edit source files in Replit workspace
+2. Rebuild API dist: `pnpm --filter @workspace/api-server run build`
+3. Push to mirror: `bash scripts/sync-mirror.sh`
+4. Render auto-deploys; Vercel auto-deploys frontend
 
-## GitHub
-- Repo: `https://github.com/reinaldoromero02/Data-Fill-Tool`
-- GitHub username: `reinaldoromero02` (with zero)
-- Replit gitPush only works to repos the Replit GitHub App is authorized for
+## DB
+- **Render Postgres**: `entrega-db` (free tier, expires Aug 31 2026)
 
-**Why:** Deploying via Vercel's "URL import" flow (vercel.com/new paste URL) bypassed
-the GitHub App account mismatch issue. Always use this path when Vercel's GitHub
-integration shows wrong account.
+## Why mirror uses pre-built dist
+Render's TypeScript build was using a cached/old compiled output. Pre-committing `artifacts/api-server/dist/index.mjs` and using `pnpm install` (no compile) as build command ensures Render always runs the exact binary we tested.
 
-## Key lesson
-Vercel's team name (`reinaldoromero2carga-facil`) ≠ GitHub username (`reinaldoromero02`).
-The team's connected GitHub scope can be a different account than the repo owner.
-URL-based import works around this by cloning the public repo directly.
+**Why:** gitPush fails silently → source repo stuck at old commit → Render compiled old TypeScript → wrong behavior. Committing dist to mirror + `pnpm install` build command bypasses the unreliable compile step.

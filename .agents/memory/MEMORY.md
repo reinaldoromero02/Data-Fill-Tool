@@ -1,1 +1,1 @@
-- [Deployment Setup](deployment.md) — Vercel (frontend) + Render (backend) + GitHub config; use URL import to bypass GitHub App account mismatch
+- [Deployment Setup](deployment.md) — mirror repo is source of truth for deploys; gitPush fails silently; use sync-mirror.sh + Render API to deploy
