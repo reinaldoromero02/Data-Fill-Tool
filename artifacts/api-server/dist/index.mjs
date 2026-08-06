@@ -56371,24 +56371,26 @@ router2.get("/entregas/resumo-mensal", async (req, res) => {
   const mesNum = parseInt(mesStr, 10);
   const start = `${mes}-01`;
   const end = `${mes}-31`;
-  const allRows = await db.select({
-    frete: entregasTable.frete,
-    obs: entregasTable.obs,
-    nf: entregasTable.nf,
-    cg: entregasTable.cg
+  const freteRows = await db.select({
+    frete: entregasTable.frete
   }).from(entregasTable).where(sql`${entregasTable.date} >= ${start} AND ${entregasTable.date} <= ${end} AND ${entregasTable.frete} IS NOT NULL`);
-  const isCancelado = (r) => r.obs && ["CANCELADO", "CANCELADA"].includes((r.obs ?? "").toUpperCase()) || r.nf === "x" || r.cg === "x";
-  const total = allRows.length;
-  const canceladas = allRows.filter(isCancelado);
-  const ativas = allRows.filter((r) => !isCancelado(r));
-  const ripackAtivas = ativas.filter((r) => r.frete === "RIPACK").length;
-  const terceirosAtivas = ativas.filter((r) => r.frete === "TRANSPORTADORA" || r.frete === "3\xBA").length;
-  const coletaAtivas = ativas.filter((r) => r.frete === "COLETA").length;
-  const canceladasTotal = canceladas.length;
-  const canceladasRipack = canceladas.filter((r) => r.frete === "RIPACK").length;
-  const canceladasTerceiros = canceladas.filter((r) => r.frete === "TRANSPORTADORA" || r.frete === "3\xBA").length;
+  const cancelRows = await db.select({ frete: entregasTable.frete }).from(entregasTable).where(sql`
+      ${entregasTable.date} >= ${start} AND ${entregasTable.date} <= ${end}
+      AND (
+        UPPER(${entregasTable.obs}) IN ('CANCELADO', 'CANCELADA')
+        OR ${entregasTable.nf} = 'x'
+        OR ${entregasTable.cg} = 'x'
+      )
+    `);
+  const canceladasTotal = cancelRows.length;
+  const canceladasRipack = cancelRows.filter((r) => r.frete === "RIPACK").length;
+  const canceladasTerceiros = cancelRows.filter((r) => r.frete === "TRANSPORTADORA" || r.frete === "3\xBA").length;
+  const total = freteRows.length;
+  const ripackAtivas = freteRows.filter((r) => r.frete === "RIPACK").length;
+  const terceirosAtivas = freteRows.filter((r) => r.frete === "TRANSPORTADORA" || r.frete === "3\xBA").length;
+  const coletaAtivas = freteRows.filter((r) => r.frete === "COLETA").length;
+  const ativasTotal = total;
   const diasUteis = diasUteisNoMes(ano, mesNum);
-  const ativasTotal = ativas.length;
   const mediaPorDia = diasUteis > 0 ? Math.round(ativasTotal / diasUteis * 10) / 10 : 0;
   const pct = (n, d) => d > 0 ? Math.round(n / d * 1e3) / 10 : 0;
   res.json({
