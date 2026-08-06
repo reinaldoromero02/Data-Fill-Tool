@@ -1,12 +1,5 @@
 import { useState, useEffect } from "react";
-import { FileText, Download, Loader2, BarChart2, Truck } from "lucide-react";
-
-const API_BASE = (import.meta.env.VITE_API_URL || "https://data-fill-tool.onrender.com").replace(/\/+$/, "");
-const apiFetch = <T = unknown>(path: string): Promise<T> =>
-  fetch(`${API_BASE}${path}`).then((r) => {
-    if (!r.ok) throw new Error(`Erro ${r.status}`);
-    return r.json() as Promise<T>;
-  });
+import { FileText, Download, Loader2, BarChart2, Truck, LayoutList } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -28,6 +21,14 @@ import {
   PieChart,
   Pie,
 } from "recharts";
+
+// ─── API helper ───────────────────────────────────────────────────────────────
+const API_BASE = (import.meta.env.VITE_API_URL || "https://data-fill-tool.onrender.com").replace(/\/+$/, "");
+const apiFetch = <T = unknown>(path: string): Promise<T> =>
+  fetch(`${API_BASE}${path}`).then((r) => {
+    if (!r.ok) throw new Error(`Erro ${r.status}`);
+    return r.json() as Promise<T>;
+  });
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -61,6 +62,33 @@ interface FreteMensalData {
   canceladosTotal: number;
 }
 
+interface MotoristaResult {
+  motorista: string;
+  placa: string | null;
+  total: number;
+}
+
+interface MotoristaRelatorio {
+  filtro: string;
+  valor: string;
+  resultado: MotoristaResult[];
+  totalViagens: number;
+}
+
+interface ResumoMensalData {
+  mes: string;
+  total: number;
+  ativasTotal: number;
+  ripack: { total: number; pct: number };
+  terceiros: { total: number; pct: number };
+  coleta: { total: number; pct: number };
+  diasUteis: number;
+  mediaPorDia: number;
+  canceladas: { total: number; pct: number };
+  canceladasRipack: number;
+  canceladasTerceiros: number;
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const FRETE_CORES: Record<string, string> = {
@@ -82,19 +110,6 @@ function mesLabel(mes: string) {
   return `${nomes[parseInt(num) - 1]} ${ano}`;
 }
 
-interface MotoristaResult {
-  motorista: string;
-  placa: string | null;
-  total: number;
-}
-
-interface MotoristaRelatorio {
-  filtro: string;
-  valor: string;
-  resultado: MotoristaResult[];
-  totalViagens: number;
-}
-
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
 function localToday() {
@@ -109,6 +124,161 @@ function localAno() { return String(new Date().getFullYear()); }
 
 type FiltroTipo = "dia" | "mes" | "ano";
 
+// ─── Resumo Mensal tab ────────────────────────────────────────────────────────
+
+function ResumoMensalTab() {
+  const [mes, setMes] = useState(mesAtual());
+  const [data, setData] = useState<ResumoMensalData | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    setFetchError(null);
+    setData(null);
+    apiFetch<ResumoMensalData>(`/api/entregas/resumo-mensal?mes=${mes}`)
+      .then(setData)
+      .catch((err: unknown) => setFetchError(err instanceof Error ? err.message : "Erro ao carregar"))
+      .finally(() => setLoading(false));
+  }, [mes]);
+
+  const prevMes = () => {
+    const [ano, num] = mes.split("-").map(Number);
+    setMes(`${num === 1 ? ano - 1 : ano}-${String(num === 1 ? 12 : num - 1).padStart(2,"0")}`);
+  };
+  const nextMes = () => {
+    const [ano, num] = mes.split("-").map(Number);
+    setMes(`${num === 12 ? ano + 1 : ano}-${String(num === 12 ? 1 : num + 1).padStart(2,"0")}`);
+  };
+
+  const exportExcel = () => {
+    if (!data) return;
+    const esc = (v: string | number) =>
+      String(v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    const cell = (v: string | number, type: "String" | "Number" = "String") =>
+      `<Cell><Data ss:Type="${type}">${esc(v)}</Data></Cell>`;
+    const row = (...cells: [string | number, "String" | "Number"?][]) =>
+      `<Row>${cells.map(([v, t]) => cell(v, t ?? (typeof v === "number" ? "Number" : "String"))).join("")}</Row>`;
+    const sep = `<Row><Cell ss:MergeAcross="2"><Data ss:Type="String"> </Data></Cell></Row>`;
+
+    const rows = [
+      row(["RESUMO MENSAL"], [mesLabel(mes)]),
+      sep,
+      row(["TOTAL DE ENTREGAS NO MÊS", data.total], [""]),
+      row(["ENTREGAS REALIZADAS (não canceladas)", data.ativasTotal]),
+      sep,
+      row(["RIPACK — Total", data.ripack.total], ["Percentual", data.ripack.pct + "%"]),
+      row(["TRANSPORTADORA + 3º — Total", data.terceiros.total], ["Percentual", data.terceiros.pct + "%"]),
+      ...(data.coleta.total > 0 ? [row(["COLETA — Total", data.coleta.total], ["Percentual", data.coleta.pct + "%"])] : []),
+      sep,
+      row(["DIAS ÚTEIS NO MÊS", data.diasUteis]),
+      row(["MÉDIA DE ENTREGAS POR DIA ÚTIL", data.mediaPorDia]),
+      sep,
+      row(["CANCELAMENTOS — Total", data.canceladas.total], ["Percentual sobre total", data.canceladas.pct + "%"]),
+      row(["CANCELAMENTOS RIPACK", data.canceladasRipack]),
+      row(["CANCELAMENTOS TRANSPORTADORA + 3º", data.canceladasTerceiros]),
+    ].join("");
+
+    const ss = `<?xml version="1.0" encoding="UTF-8"?><?mso-application progid="Excel.Sheet"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Worksheet ss:Name="Resumo ${mes}"><Table>${rows}</Table></Worksheet></Workbook>`;
+    const blob = new Blob([ss], { type: "application/vnd.ms-excel" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `resumo_${mes}.xls`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="flex flex-col gap-3 flex-1 min-h-0 overflow-auto">
+      {/* Month navigator */}
+      <div className="flex items-center justify-between">
+        <button onClick={prevMes} className="px-3 py-1 rounded border border-slate-300 text-sm hover:bg-slate-100">‹</button>
+        <span className="text-sm font-semibold text-slate-700">{mesLabel(mes)}</span>
+        <button onClick={nextMes} className="px-3 py-1 rounded border border-slate-300 text-sm hover:bg-slate-100">›</button>
+      </div>
+
+      {loading && <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 text-blue-500 animate-spin" /></div>}
+      {fetchError && <p className="text-sm text-red-500 text-center py-8">{fetchError}</p>}
+
+      {data && !loading && (
+        <>
+          {/* Grid de cards */}
+          <div className="grid grid-cols-2 gap-3">
+
+            {/* Total entregas */}
+            <Card accent="#2563eb" label="Total de Entregas no Mês" value={data.total} sub="incluindo cancelamentos" />
+            <Card accent="#16a34a" label="Entregas Realizadas" value={data.ativasTotal} sub="excluindo cancelamentos" />
+
+            {/* Ripack */}
+            <Card accent="#16a34a" label="RIPACK" value={data.ripack.total}>
+              <Pct value={data.ripack.pct} color="#16a34a" />
+            </Card>
+
+            {/* Transportadora + 3º */}
+            <Card accent="#2563eb" label="TRANSPORTADORA + 3º" value={data.terceiros.total}>
+              <Pct value={data.terceiros.pct} color="#2563eb" />
+            </Card>
+
+            {/* Dias úteis */}
+            <Card accent="#7c3aed" label="Dias Úteis no Mês" value={data.diasUteis} sub="excl. finais de semana e feriados" />
+
+            {/* Média por dia */}
+            <Card accent="#0891b2" label="Média de Entregas / Dia Útil" value={data.mediaPorDia} />
+
+            {/* Cancelamentos totais */}
+            <Card accent="#dc2626" label="Cancelamentos no Mês" value={data.canceladas.total}>
+              <Pct value={data.canceladas.pct} color="#dc2626" label="do total" />
+            </Card>
+
+            {/* Cancelamentos Ripack */}
+            <div className="col-span-2 grid grid-cols-2 gap-3">
+              <Card accent="#dc2626" label="Cancelamentos RIPACK" value={data.canceladasRipack} />
+              <Card accent="#dc2626" label="Cancelamentos TRANSP. + 3º" value={data.canceladasTerceiros} />
+            </div>
+          </div>
+
+          <div className="flex justify-end pt-1">
+            <Button size="sm" onClick={exportExcel} className="gap-2 bg-green-700 hover:bg-green-800 text-white">
+              <Download className="w-4 h-4" />
+              Exportar para Excel
+            </Button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function Card({
+  accent, label, value, sub, children,
+}: {
+  accent: string;
+  label: string;
+  value: number;
+  sub?: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white p-4 flex flex-col gap-1 shadow-sm" style={{ borderLeftWidth: 4, borderLeftColor: accent }}>
+      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide leading-tight">{label}</p>
+      <p className="text-3xl font-bold" style={{ color: accent }}>{value}</p>
+      {sub && <p className="text-xs text-slate-400">{sub}</p>}
+      {children}
+    </div>
+  );
+}
+
+function Pct({ value, color, label = "das realizadas" }: { value: number; color: string; label?: string }) {
+  return (
+    <div className="flex items-center gap-2 mt-1">
+      <div className="flex-1 bg-slate-100 rounded-full h-2">
+        <div className="h-2 rounded-full transition-all" style={{ width: `${Math.min(value, 100)}%`, background: color }} />
+      </div>
+      <span className="text-xs font-semibold" style={{ color }}>{value}%</span>
+      <span className="text-xs text-slate-400">{label}</span>
+    </div>
+  );
+}
+
 // ─── Divergencias tab ─────────────────────────────────────────────────────────
 
 function DivergenciasTab() {
@@ -116,7 +286,6 @@ function DivergenciasTab() {
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
-  // filter state
   const [filtro, setFiltro] = useState<FiltroTipo>("mes");
   const [dia, setDia] = useState(localToday);
   const [mes, setMes] = useState(localMes);
@@ -130,14 +299,12 @@ function DivergenciasTab() {
       .finally(() => setLoading(false));
   }, []);
 
-  // client-side filter
   const filtered = data.filter((d) => {
     if (filtro === "dia") return d.date === dia;
     if (filtro === "mes") return d.date.startsWith(mes);
     return d.date.startsWith(ano);
   });
 
-  // month nav (timezone-safe)
   const prevMes = () => {
     const [a, m] = mes.split("-").map(Number);
     const p = m === 1 ? 12 : m - 1;
@@ -172,9 +339,7 @@ function DivergenciasTab() {
 
   return (
     <>
-      {/* Filter bar */}
       <div className="flex items-center gap-3 pb-2">
-        {/* Tipo selector */}
         <div className="flex rounded-md border border-slate-300 overflow-hidden text-xs font-semibold">
           {(["dia", "mes", "ano"] as FiltroTipo[]).map((t) => (
             <button
@@ -189,7 +354,6 @@ function DivergenciasTab() {
           ))}
         </div>
 
-        {/* Dia picker */}
         {filtro === "dia" && (
           <input
             type="date"
@@ -199,7 +363,6 @@ function DivergenciasTab() {
           />
         )}
 
-        {/* Mês navigator */}
         {filtro === "mes" && (
           <div className="flex items-center gap-1">
             <button onClick={prevMes} className="px-2 py-1 rounded border border-slate-300 text-sm hover:bg-slate-100">‹</button>
@@ -208,7 +371,6 @@ function DivergenciasTab() {
           </div>
         )}
 
-        {/* Ano navigator */}
         {filtro === "ano" && (
           <div className="flex items-center gap-1">
             <button onClick={() => setAno((a) => String(Number(a) - 1))} className="px-2 py-1 rounded border border-slate-300 text-sm hover:bg-slate-100">‹</button>
@@ -294,7 +456,6 @@ function FreteMensalTab() {
   const canceladosTotal = data?.canceladosTotal ?? 0;
   const hasCancelados = canceladosTotal > 0;
 
-  // Pie data includes cancelados as a separate slice
   const pieData = [
     ...( data?.resumo.filter((r) => r.total > 0) ?? [] ),
     ...(hasCancelados ? [{ frete: "CANCELADOS", total: canceladosTotal }] : []),
@@ -303,7 +464,6 @@ function FreteMensalTab() {
   const CANCELADOS_COR = "#dc2626";
   const corOf = (frete: string) => frete === "CANCELADOS" ? CANCELADOS_COR : (FRETE_CORES[frete] ?? "#94a3b8");
 
-  // Which bar series to show
   const activeFreteTipos = TIPOS.filter((t) => data?.resumo.find((r) => r.frete === t && r.total > 0));
   const hasCanceladosBar = data?.porDia.some((d) => (d as unknown as Record<string, number>)["CANCELADOS"] > 0);
 
@@ -319,13 +479,10 @@ function FreteMensalTab() {
     const allCols = [...TIPOS, ...(data.canceladosTotal > 0 ? ["CANCELADOS"] : [])];
 
     const rows = [
-      // ── Resumo ──
       row(["TIPO DE FRETE", "TOTAL"]),
       ...data.resumo.map((r) => row([r.frete, r.total])),
       ...(data.canceladosTotal > 0 ? [row(["CANCELADOS / X", data.canceladosTotal])] : []),
-      // blank separator
       "<Row/>",
-      // ── Por dia ──
       row(["DATA", ...allCols]),
       ...data.porDia.map((d) =>
         row([d.date, ...allCols.map((c) => ((d as unknown as Record<string, number>)[c] ?? 0))])
@@ -344,7 +501,6 @@ function FreteMensalTab() {
 
   return (
     <div className="flex flex-col gap-4 flex-1 min-h-0">
-      {/* Month navigator */}
       <div className="flex items-center justify-between">
         <button onClick={prevMes} className="px-3 py-1 rounded border border-slate-300 text-sm hover:bg-slate-100">‹</button>
         <span className="text-sm font-semibold text-slate-700">{mesLabel(mes)}</span>
@@ -361,7 +517,6 @@ function FreteMensalTab() {
           ) : (
             <>
             <div className="flex gap-4 flex-1 min-h-0">
-              {/* Pie chart + legend */}
               <div className="flex flex-col items-center gap-3 w-52 flex-shrink-0">
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Total do Mês</p>
                 {pieData.length > 0 && (
@@ -386,7 +541,6 @@ function FreteMensalTab() {
                   </ResponsiveContainer>
                 )}
 
-                {/* Legend cards — frete types */}
                 <div className="w-full flex flex-col gap-1">
                   {data.resumo.map((r) => (
                     <div key={r.frete} className="flex items-center justify-between px-2 py-1 rounded text-xs" style={{ background: FRETE_CORES[r.frete] + "18" }}>
@@ -398,7 +552,6 @@ function FreteMensalTab() {
                     </div>
                   ))}
 
-                  {/* Cancelados card — always shown in red when > 0 */}
                   {hasCancelados && (
                     <div className="flex items-center justify-between px-2 py-1 rounded text-xs mt-1 border border-red-200" style={{ background: "#fef2f2" }}>
                       <span className="flex items-center gap-1.5 font-semibold text-red-600">
@@ -411,7 +564,6 @@ function FreteMensalTab() {
                 </div>
               </div>
 
-              {/* Bar chart — per day */}
               {data.porDia.length > 0 && (
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Por Dia</p>
@@ -518,7 +670,6 @@ function MotoristaTab() {
 
   return (
     <div className="flex flex-col gap-3 flex-1 min-h-0">
-      {/* Filter bar */}
       <div className="flex items-center gap-3">
         <div className="flex rounded-md border border-slate-300 overflow-hidden text-xs font-semibold">
           {(["dia","mes","ano"] as FiltroTipo[]).map((t) => (
@@ -564,7 +715,6 @@ function MotoristaTab() {
             <p className="text-sm text-slate-400 text-center py-8 italic">Nenhuma viagem registrada no período.</p>
           ) : (
             <>
-              {/* Horizontal bar chart */}
               <div className="flex-shrink-0">
                 <ResponsiveContainer width="100%" height={Math.max(120, data.resultado.length * 36)}>
                   <BarChart
@@ -589,7 +739,6 @@ function MotoristaTab() {
                 </ResponsiveContainer>
               </div>
 
-              {/* Summary table */}
               <div className="flex-1 overflow-auto border rounded-md">
                 <table className="w-full text-sm">
                   <thead>
@@ -642,11 +791,11 @@ function MotoristaTab() {
 
 // ─── Main modal ───────────────────────────────────────────────────────────────
 
-type Tab = "divergencias" | "frete" | "motoristas";
+type Tab = "resumo" | "divergencias" | "frete" | "motoristas";
 
 export function RelatorioModal() {
   const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState<Tab>("divergencias");
+  const [tab, setTab] = useState<Tab>("resumo");
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -667,6 +816,7 @@ export function RelatorioModal() {
         {/* Tabs */}
         <div className="flex border-b border-slate-200 gap-1 -mx-1 px-1">
           {([
+            { key: "resumo",       label: "Resumo Mensal",    icon: <LayoutList className="w-3.5 h-3.5" /> },
             { key: "divergencias", label: "Divergências",     icon: <FileText className="w-3.5 h-3.5" /> },
             { key: "frete",        label: "Frete Mensal",     icon: <BarChart2 className="w-3.5 h-3.5" /> },
             { key: "motoristas",   label: "Viagens/Motorista", icon: <Truck className="w-3.5 h-3.5" /> },
@@ -686,9 +836,10 @@ export function RelatorioModal() {
         </div>
 
         <div className="flex-1 flex flex-col min-h-0 pt-1">
+          {open && tab === "resumo"       && <ResumoMensalTab />}
           {open && tab === "divergencias" && <DivergenciasTab />}
-          {open && tab === "frete" && <FreteMensalTab />}
-          {open && tab === "motoristas" && <MotoristaTab />}
+          {open && tab === "frete"        && <FreteMensalTab />}
+          {open && tab === "motoristas"   && <MotoristaTab />}
         </div>
       </DialogContent>
     </Dialog>

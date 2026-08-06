@@ -180,6 +180,104 @@ router.get("/entregas/frete-mensal", async (req, res): Promise<void> => {
   res.json({ mes, resumo, porDia, canceladosTotal: cancelRows.length });
 });
 
+// ─── Resumo Mensal ────────────────────────────────────────────────────────────
+function diasUteisNoMes(ano: number, mes: number): number {
+  // Brazilian national fixed holidays (MM-DD)
+  const fixedHolidays = new Set([
+    "01-01","04-21","05-01","09-07","10-12","11-02","11-15","11-20","12-25",
+  ]);
+  // Easter-based holidays (calculated per year)
+  const easterHolidays = getEasterBasedHolidays(ano);
+
+  let count = 0;
+  const daysInMonth = new Date(ano, mes, 0).getDate();
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = new Date(ano, mes - 1, d);
+    const dow = date.getDay();
+    if (dow === 0 || dow === 6) continue; // skip weekend
+    const mmdd = `${String(mes).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+    const yyyymmdd = `${ano}-${mmdd}`;
+    if (fixedHolidays.has(mmdd) || easterHolidays.has(yyyymmdd)) continue;
+    count++;
+  }
+  return count;
+}
+
+function getEasterBasedHolidays(ano: number): Set<string> {
+  // Computus algorithm for Easter
+  const a = ano % 19, b = Math.floor(ano / 100), c = ano % 100;
+  const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3), h = (19*a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4), k = c % 4, l = (32 + 2*e + 2*i - h - k) % 7;
+  const m = Math.floor((a + 11*h + 22*l) / 451);
+  const month = Math.floor((h + l - 7*m + 114) / 31);
+  const day = ((h + l - 7*m + 114) % 31) + 1;
+  const easter = new Date(ano, month - 1, day);
+  const fmt = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  const add = (base: Date, days: number) => new Date(base.getTime() + days * 86400000);
+  return new Set([
+    fmt(add(easter, -2)),  // Sexta-feira Santa
+    fmt(add(easter, 60)),  // Corpus Christi
+  ]);
+}
+
+router.get("/entregas/resumo-mensal", async (req, res): Promise<void> => {
+  const mes = typeof req.query.mes === "string" ? req.query.mes : new Date().toISOString().slice(0, 7);
+  const [anoStr, mesStr] = mes.split("-");
+  const ano = parseInt(anoStr, 10);
+  const mesNum = parseInt(mesStr, 10);
+  const start = `${mes}-01`;
+  const end = `${mes}-31`;
+
+  // All entries with frete in the month
+  const allRows = await db
+    .select({
+      frete: entregasTable.frete,
+      obs: entregasTable.obs,
+      nf: entregasTable.nf,
+      cg: entregasTable.cg,
+    })
+    .from(entregasTable)
+    .where(sql`${entregasTable.date} >= ${start} AND ${entregasTable.date} <= ${end} AND ${entregasTable.frete} IS NOT NULL`);
+
+  const isCancelado = (r: { obs: string | null; nf: string; cg: string }) =>
+    (r.obs && ["CANCELADO","CANCELADA"].includes((r.obs ?? "").toUpperCase())) ||
+    r.nf === "x" || r.cg === "x";
+
+  const total = allRows.length;
+  const canceladas = allRows.filter(isCancelado);
+  const ativas = allRows.filter((r) => !isCancelado(r));
+
+  const ripackAtivas = ativas.filter((r) => r.frete === "RIPACK").length;
+  const terceirosAtivas = ativas.filter((r) => r.frete === "TRANSPORTADORA" || r.frete === "3º").length;
+  const coletaAtivas = ativas.filter((r) => r.frete === "COLETA").length;
+
+  const canceladasTotal = canceladas.length;
+  const canceladasRipack = canceladas.filter((r) => r.frete === "RIPACK").length;
+  const canceladasTerceiros = canceladas.filter((r) => r.frete === "TRANSPORTADORA" || r.frete === "3º").length;
+
+  const diasUteis = diasUteisNoMes(ano, mesNum);
+  const ativasTotal = ativas.length;
+  const mediaPorDia = diasUteis > 0 ? Math.round((ativasTotal / diasUteis) * 10) / 10 : 0;
+
+  const pct = (n: number, d: number) => (d > 0 ? Math.round((n / d) * 1000) / 10 : 0);
+
+  res.json({
+    mes,
+    total,
+    ativasTotal,
+    ripack: { total: ripackAtivas, pct: pct(ripackAtivas, ativasTotal) },
+    terceiros: { total: terceirosAtivas, pct: pct(terceirosAtivas, ativasTotal) },
+    coleta: { total: coletaAtivas, pct: pct(coletaAtivas, ativasTotal) },
+    diasUteis,
+    mediaPorDia,
+    canceladas: { total: canceladasTotal, pct: pct(canceladasTotal, total) },
+    canceladasRipack,
+    canceladasTerceiros,
+  });
+});
+
 router.get("/entregas/motorista-relatorio", async (req, res): Promise<void> => {
   const filtro = typeof req.query.filtro === "string" ? req.query.filtro : "mes";
   const valor  = typeof req.query.valor  === "string" ? req.query.valor  : new Date().toISOString().slice(0, 7);
