@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 # Syncs changed files from source repo to the Vercel mirror repo via GitHub API.
-# Runs automatically after git push. Requires GITHUB_PERSONAL_ACCESS_TOKEN env var.
+# Run after local changes + gitPush. Requires GITHUB_PERSONAL_ACCESS_TOKEN env var.
 
 set -euo pipefail
 
 MIRROR="reinaldoromero2/programacao-entrega"
-API="https://api.github.com/repos/${MIRROR}/contents"
 TOKEN="${GITHUB_PERSONAL_ACCESS_TOKEN:-}"
 
 if [ -z "$TOKEN" ]; then
@@ -13,50 +12,71 @@ if [ -z "$TOKEN" ]; then
   exit 0
 fi
 
-sync_file() {
-  local path="$1"
-  local local_path="$2"
-
-  local sha
-  sha=$(curl -s \
-    -H "Authorization: Bearer $TOKEN" \
-    -H "Accept: application/vnd.github+json" \
-    "${API}/${path}" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('sha',''))" 2>/dev/null || true)
-
-  local content
-  content=$(base64 -w 0 "$local_path")
-
-  local payload
-  payload=$(python3 -c "
-import json, sys
-sha=sys.argv[1]; content=sys.argv[2]; path=sys.argv[3]
-d={'message': 'sync: $path', 'content': content}
-if sha: d['sha'] = sha
-print(json.dumps(d))
-" "$sha" "$content" "$path")
-
-  local result
-  result=$(curl -s -X PUT \
-    -H "Authorization: Bearer $TOKEN" \
-    -H "Accept: application/vnd.github+json" \
-    -H "Content-Type: application/json" \
-    -d "$payload" \
-    "${API}/${path}")
-
-  local commit_sha
-  commit_sha=$(echo "$result" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('commit',{}).get('sha','')[:7] if 'commit' in d else 'ERR:'+d.get('message','?'))" 2>/dev/null || echo "ERR")
-  echo "  ✓ ${path} → ${commit_sha}"
-}
-
 echo "🔄 Syncing mirror ${MIRROR}..."
 
-# Files to keep in sync
-sync_file "artifacts/programacao-entrega/src/components/relatorio-modal.tsx" \
-          "artifacts/programacao-entrega/src/components/relatorio-modal.tsx"
+python3 << 'PYEOF'
+import os, json, base64, urllib.request, urllib.error, sys
 
-sync_file "artifacts/api-server/src/routes/entregas.ts" \
-          "artifacts/api-server/src/routes/entregas.ts"
+TOKEN = os.environ["GITHUB_PERSONAL_ACCESS_TOKEN"]
+MIRROR = "reinaldoromero2/programacao-entrega"
+BASE = "https://api.github.com"
 
-sync_file "vercel.json" "vercel.json"
+FILES = [
+    "artifacts/programacao-entrega/src/components/relatorio-modal.tsx",
+    "artifacts/api-server/src/routes/entregas.ts",
+    "artifacts/api-server/dist/index.mjs",
+    "vercel.json",
+]
 
-echo "✅ Mirror sync done"
+def gh(method, path, body=None):
+    url = f"{BASE}{path}"
+    data = json.dumps(body).encode() if body else None
+    req = urllib.request.Request(url, data=data, method=method, headers={
+        "Authorization": f"Bearer {TOKEN}",
+        "Accept": "application/vnd.github+json",
+        "Content-Type": "application/json",
+    })
+    try:
+        with urllib.request.urlopen(req) as r:
+            return json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        return json.loads(e.read())
+
+# Get current HEAD
+ref = gh("GET", f"/repos/{MIRROR}/git/refs/heads/main")
+head_sha = ref["object"]["sha"]
+commit = gh("GET", f"/repos/{MIRROR}/git/commits/{head_sha}")
+base_tree = commit["tree"]["sha"]
+
+tree_entries = []
+for path in FILES:
+    if not os.path.exists(path):
+        print(f"  ⚠ skip {path} (not found)")
+        continue
+    with open(path, "rb") as f:
+        content = base64.b64encode(f.read()).decode()
+    blob = gh("POST", f"/repos/{MIRROR}/git/blobs", {"content": content, "encoding": "base64"})
+    blob_sha = blob.get("sha")
+    if not blob_sha:
+        print(f"  ✗ blob failed for {path}: {blob.get('message','?')}")
+        continue
+    tree_entries.append({"path": path, "mode": "100644", "type": "blob", "sha": blob_sha})
+    print(f"  ✓ blob {path} → {blob_sha[:8]}")
+
+if not tree_entries:
+    print("Nothing to sync.")
+    sys.exit(0)
+
+new_tree = gh("POST", f"/repos/{MIRROR}/git/trees", {"base_tree": base_tree, "tree": tree_entries})
+new_tree_sha = new_tree.get("sha")
+
+new_commit = gh("POST", f"/repos/{MIRROR}/git/commits", {
+    "message": "sync: update from source repo",
+    "tree": new_tree_sha,
+    "parents": [head_sha]
+})
+new_commit_sha = new_commit.get("sha")
+
+result = gh("PATCH", f"/repos/{MIRROR}/git/refs/heads/main", {"sha": new_commit_sha})
+print(f"\n✅ Mirror updated → {result.get('object',{}).get('sha','ERR')[:7]}")
+PYEOF
